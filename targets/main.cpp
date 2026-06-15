@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include "pzlog.h"
 #include <DarcyFlow/TPZMixedDarcyFlow.h>
 #include <Elasticity/TPZElasticity2D.h>
 #include <Elasticity/TPZHybridElasticity2D.h>
@@ -49,7 +50,11 @@ void inSituStress(const TPZVec<REAL> &loc, TPZVec<REAL> &result);
 
 int main() {
 
-    std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Example5.json");
+#ifdef PZ_LOG
+    TPZLogger::InitializePZLOG();
+#endif
+
+    std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Test2.json");
 
     json fInputFile = json::parse(filejson,nullptr,true,true,true); 
 
@@ -72,6 +77,7 @@ int main() {
     TPZLinearAnalysis *Analisys = new TPZLinearAnalysis(cmesh);
 
     SetAnalysis(Analisys, cmesh);
+    PrintCompMesh(cmesh);
     {
         const std::string plotfile = fMeshName;
         constexpr int vtkRes{0};
@@ -101,11 +107,11 @@ TPZGeoMesh* GenerateGeoMesh(std::string filename, json inputFile, std::string me
 
     for(auto& bc : inputFile["BCs"]){
         if(bc.find("Name") == bc.end()) DebugStop(); 
-        dim_name_and_physical_tag[1][bc["Name"]] = bc["matId"];
+        dim_name_and_physical_tag[bc["Dim"]][bc["Name"]] = bc["matId"];
     }
 
-    dim_name_and_physical_tag[1]["Fault"] = EFault;
-    dim_name_and_physical_tag[0]["FracEnd"] = EFracEnds;
+    //dim_name_and_physical_tag[1]["Fault"] = EFault;
+    //dim_name_and_physical_tag[0]["FracEnd"] = EFracEnds;
 
     GeometryFine.SetDimNamePhysical(dim_name_and_physical_tag);
     gmesh = GeometryFine.GeometricGmshMesh(filename,nullptr,false);
@@ -128,6 +134,7 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile){
     std::set<int> bcIds;
     std::map<int,int> bcTypes; // matId --> Type
     std::map<int,TPZManVector<double, 2>> bcValues; // matId --> Value
+    TPZManVector<double, 2>  bcValueVec = {0.0, 0.0};
 
     for(auto& layer : inputFile["DomainData"]){
         if(layer.find("Name") == layer.end()) DebugStop(); // check if the information exists
@@ -143,7 +150,9 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile){
         int bcId = bc["matId"];
         bcIds.insert(bcId);
         bcTypes[bc["matId"]] = bc["Type"];
-        bcValues[bc["matId"]] = bc["Value"];
+        bcValueVec[0] = bc["Value"][0];
+        bcValueVec[1] = bc["Value"][1];
+        bcValues[bc["matId"]] = bcValueVec;
     }
 
     // State Stress
@@ -154,9 +163,10 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile){
 
     TPZFMatrix<STATE> pre_sigma(3,3,0.0);
     STATE pp = inputFile["InSitu_Stress"]["Pore-Pressure"];
-    pre_sigma(0,0) = pp; //pore pressure
-    pre_sigma(1,1) = pp;
-    pre_sigma(2,2) = pp;
+    pre_sigma(0,0) = inputFile["InSitu_Stress"]["Sigma_H"]; 
+    pre_sigma(1,1) = inputFile["InSitu_Stress"]["Sigma_v"];
+    pre_sigma(0,1) = 0; //! VERIFY
+    pre_sigma(2,2) = 0; //! VERIFY
 
     int planestrain = 0; 
 
@@ -166,9 +176,9 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile){
     TPZElasticity2D *matLayer = nullptr;
     for(int layId : layerIds){
         matLayer = new TPZElasticity2D(layId, Elas[layId], nu[layId], fxf, fyf, planestrain);
-        //matLayer->SetPreStress(pre_sigma(0,0), pre_sigma(1,1), pre_sigma(0,1), pre_sigma(2,2));
+        matLayer->SetPreStress(pre_sigma(0,0), pre_sigma(1,1), pre_sigma(0,1), pre_sigma(2,2));
         //matLayer->SetForcingFunction(gravityLoad,1);
-        matLayer->SetForcingFunction(inSituStress,1);
+        //matLayer->SetForcingFunction(inSituStress,1);
         cmesh->InsertMaterialObject(matLayer);
     }
 
@@ -207,10 +217,16 @@ TPZCompMesh *CreateCMesh(TPZGeoMesh* gmesh, json inputFile){
     std::map<int,REAL> Elas; // matId --> Elas
     std::map<int,REAL> nu; // matId --> nu
     std::map<int,REAL> rho; // matId --> rho
+    std::map<int,TPZManVector<double, 3>> preStress; 
+    TPZManVector<double, 3>  preStressVec = {0.0, 0.0, 0.0};
 
     std::set<int> bcIds;
     std::map<int,int> bcTypes; // matId --> Type
-    std::map<int,TPZManVector<double, 2>> bcValues; // matId --> Value
+    std::map<int,TPZManVector<double, 2>> normal; // matId --> unit normal to the surface
+    std::map<int,TPZFMatrix<STATE>> bcValues1; // matId --> Value1
+    std::map<int,TPZManVector<STATE, 2>> bcValues2; // matId --> Value2
+    TPZFMatrix<STATE> bcValueMat(2,2,0.0);
+    TPZManVector<STATE, 2>  bcValueVec = {0.0, 0.0};
 
     for(auto& layer : inputFile["DomainData"]){
         if(layer.find("Name") == layer.end()) DebugStop(); // check if the information exists
@@ -218,53 +234,69 @@ TPZCompMesh *CreateCMesh(TPZGeoMesh* gmesh, json inputFile){
         layerIds.insert(layId);
         Elas[layer["matId"]] = layer["Young"];
         nu[layer["matId"]] = layer["Poisson"];
-        rho[layer["matId"]] = layer["Density"];
+        preStressVec[0] = layer["PreStress"][0];
+        preStressVec[1] = layer["PreStress"][1];
+        preStressVec[2] = layer["PreStress"][2];
+        preStress[layer["matId"]] = preStressVec;
     }
 
     for(auto& bc : inputFile["BCs"]){
-        if(bc.find("Name") == bc.end()) DebugStop(); // check if the information exists
+        if(bc.find("Name") == bc.end()) DebugStop();
         int bcId = bc["matId"];
         bcIds.insert(bcId);
         bcTypes[bc["matId"]] = bc["Type"];
-        bcValues[bc["matId"]] = bc["Value"];
+        bcValueVec[0] = bc["Value2"][0];
+        bcValueVec[1] = bc["Value2"][1];
+        bcValues2[bc["matId"]] = bcValueVec;
+        // if(bc.find("normal") != bc.end()){
+        //     normal[bc["matId"]] = bc["normal"];
+        // }
+        if(bc.find("Value1") != bc.end()){
+            bcValueMat(0,0) = bc["Value1"][0][0];
+            bcValueMat(0,1) = bc["Value1"][0][1];
+            bcValueMat(1,0) = bc["Value1"][1][0];
+            bcValueMat(1,1) = bc["Value1"][1][1];
+            bcValues1[bc["matId"]] = bcValueMat;
+        }
     }
+
 
     // Create and Set-Up Approximation Spaces
     TPZH1ApproxCreator approxCreator(gmesh);
     approxCreator.ProbType() = ProblemType::EElastic;
     approxCreator.HybridType() = HybridizationType::ENone;
     approxCreator.SetShouldCondense(false);
-    approxCreator.SetDefaultOrder(2);
-    approxCreator.SetExtraInternalOrder(2);
+    approxCreator.SetDefaultOrder(1);
+    approxCreator.SetExtraInternalOrder(1);
 
-    // State Stress
+
+    // Body Forces
     STATE fxf = 0; 
     STATE fyf = 0;
     STATE fxr = 0;
     STATE fyr = 0;
 
-    TPZFMatrix<STATE> pre_sigma(3,3,0.0);
+    // In-Situ State Stress
+    TPZFMatrix<STATE> farField(3,3,0.0);
     STATE pp = inputFile["InSitu_Stress"]["Pore-Pressure"];
-    pre_sigma(0,0) = pp; //pore pressure
-    pre_sigma(1,1) = pp;
-    pre_sigma(2,2) = pp;
+    farField(0,0) = inputFile["InSitu_Stress"]["Sigma_H"]; 
+    farField(1,1) = inputFile["InSitu_Stress"]["Sigma_v"];
+    farField(0,1) = 0; 
+    farField(2,2) = 0; 
 
     int planestrain = 0; 
+    int planestress = 1;
 
 
     // Add materials
     //TPZElasticity2D *matElas = new TPZElasticity2D(EMatId, Ef, nuf, fxf, fyf, planestrain);
     TPZElasticity2D *matLayer = nullptr;
     for(int layId : layerIds){
-        matLayer = new TPZElasticity2D(layId, Elas[layId], nu[layId], fxf, fyf, planestrain);
-        matLayer->SetPreStress(pre_sigma(0,0), pre_sigma(1,1), pre_sigma(0,1), pre_sigma(2,2));
+        matLayer = new TPZElasticity2D(layId, Elas[layId], nu[layId], fxf, fyf, planestress);
+        matLayer->SetPreStress(preStress[layId][0], preStress[layId][1], preStress[layId][2], 0.0);
         //matLayer->SetForcingFunction(gravityLoad,1);
-        matLayer->SetForcingFunction(inSituStress,1);
         approxCreator.InsertMaterialObject(matLayer);
     }
-
-    //cmesh->InsertMaterialObject(matElas);
-    //cmesh->InsertMaterialObject(matFault);
 
 
     // Add boundary conditions
@@ -274,18 +306,19 @@ TPZCompMesh *CreateCMesh(TPZGeoMesh* gmesh, json inputFile){
     int NeuType = 1;
 
     for(int bcId : bcIds){
-        val2[0] = bcValues[bcId][0];
-        val2[1] = bcValues[bcId][1];
+        if(bcValues1.find(bcId) != bcValues1.end()) val1 = bcValues1[bcId];
+        if(bcValues2.find(bcId) != bcValues2.end()) val2 = bcValues2[bcId];
         TPZBndCond *bcDomain = matLayer->CreateBC(matLayer, bcId, bcTypes[bcId], val1, val2);
         approxCreator.InsertMaterialObject(bcDomain);
     }
 
     TPZCompMesh *cmesh;
-    cmesh->SetName("CompMesh");
+    //cmesh->SetName("CompMesh");
     if(approxCreator.HybridType() == HybridizationType::ENone)
         cmesh = approxCreator.CreateClassicH1ApproximationSpace();
     else
         cmesh = approxCreator.CreateApproximationSpace();
+    cmesh->SetName("CompMesh");
 
     return cmesh;
 }
@@ -322,8 +355,8 @@ TPZCompMesh *CreateMPCompMesh(TPZGeoMesh* gmesh, json inputFile){
     approxCreator.ProbType() = ProblemType::EElastic;
     approxCreator.HybridType() = HybridizationType::EStandard;
     approxCreator.SetShouldCondense(false);
-    approxCreator.SetDefaultOrder(2);
-    approxCreator.SetExtraInternalOrder(2);
+    approxCreator.SetDefaultOrder(1);
+    approxCreator.SetExtraInternalOrder(0);
 
     // Add Materials
     //TPZElasticity2D *matElas = new TPZElasticity2D(EFarFieldId, Ef, nuf, fxf, fyf, planestrain);
@@ -382,11 +415,11 @@ void SetAnalysis(TPZLinearAnalysis* an, TPZCompMesh* cmesh){
     #else
     TPZFStructMatrix<STATE> matMixed(cmesh);
     #endif
-    matMixed.SetNumThreads(4);
+    matMixed.SetNumThreads(0);
     an->SetStructuralMatrix(matMixed);
 
     TPZStepSolver<STATE> step;
-    step.SetDirect(ELDLt); // Cholesky?
+    step.SetDirect(ELU); // Cholesky?
     an->SetSolver(step);
     
     an->Assemble();
@@ -407,7 +440,7 @@ void inSituStress(const TPZVec<REAL> &loc, TPZVec<REAL> &result){
 
     json inputFile = json::parse(filejson,nullptr,true,true,true); 
 
-    STATE sigV = inputFile["InSitu_Stress"]["Sigma_V"];
+    STATE sigV = inputFile["InSitu_Stress"]["Sigma_v"];
     STATE sigH = inputFile["InSitu_Stress"]["Sigma_H"];
     STATE sigh = inputFile["InSitu_Stress"]["Sigma_h"];
     STATE Pp = inputFile["InSitu_Stress"]["Pore-Pressure"];

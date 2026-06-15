@@ -55,11 +55,3 @@ Physical Curve("right", 5) = {6};
 Physical Curve("bottom", 6) = {5};
 //+
 Physical Curve("top", 7) = {7};
-//+
-Physical Curve("res-left", 8) = {4};
-//+
-Physical Curve("res-right", 9) = {2};
-//+
-Physical Curve("res-bottom", 10) = {3};
-//+
-Physical Curve("res-top", 11) = {1};
