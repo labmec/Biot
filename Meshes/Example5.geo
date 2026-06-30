@@ -148,6 +148,7 @@ Physical Curve("bottom") = {bottomCurves[]};
 Physical Curve("top")    = {topCurves[]};
 Physical Curve("left")   = {leftCurves[]};
 Physical Curve("right")  = {rightCurves[]};
+Physical Point("dirXY") = {1};
 
 // ==================================================
 // MESH OPTIONS

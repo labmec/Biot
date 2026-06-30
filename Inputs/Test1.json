@@ -1,8 +1,10 @@
 {
   "MeshName" : "Test1",
-  "MeshDirectory" : "/home/marina/programming/Biot-Research/Biot/Meshes/quad.msh", 
+  "MeshDirectory" : "/home/marina/programming/Biot-Research/Biot/Meshes/quad2.msh", 
   "Simulation" : {
-    "ApproximationType" : 0, // Classic H1: 0, Hybrid H1: 1
+    "ApproximationType" : 1, // Classic H1: 0, Hybrid H1: 1
+    "pOrder" : 1,
+    "internalOrder" : 2
   },
   "Dimension": 2,
   "Resolution": 1,
@@ -14,7 +16,7 @@
       "Young" : 5.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82e6, 15.82e6, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [10.0, 10.0, 0.0] //stress_xx, stress_yy, stress_xy
     }
   ],
   "InSitu_Stress" : {
@@ -27,36 +29,43 @@
     {
       "Name" : "left",
       "Dim" : 1,
-      "matId" : 4,
-      "Type" : 2, //Dirichlet: 0, Neumann: 1, Mixed: 2
+      "matId" : 2,
+      "Type" : 0, //Dirichlet: 0, Neumann: 1, Mixed: 2
       "normal" : [-1.0, 0.0],
-      "Value1" : [[1.0e9, 0.0],[0.0, 0.0]], // constrained in x
-      "Value2" : [-15.82e6, 0.0]
+      "Value2" : [0.0, 0.0]
     },
+    // {
+    //   "Name" : "bottom",
+    //   "Dim" : 1,
+    //   "matId" : 7,
+    //   "Type" : 2, 
+    //   "normal" : [0.0, -1.0],
+    //   "Value1" : [[0.0, 0.0],[0.0, 1.0e9]], // constrained in y
+    //   "Value2" : [0.0, -15.82e6]
+    // },
     {
       "Name" : "bottom",
       "Dim" : 1,
-      "matId" : 7,
-      "Type" : 2, 
+      "matId" : 3,
+      "Type" : 0, 
       "normal" : [0.0, -1.0],
-      "Value1" : [[0.0, 0.0],[0.0, 1.0e9]], // constrained in y
-      "Value2" : [0.0, -15.82e6]
+      "Value2" : [0.0, 0.0]
     },
     {
       "Name" : "right",
       "Dim" : 1,
-      "matId" : 5,
+      "matId" : 4,
       "Type" : 1, 
       "normal" : [1.0, 0.0],
-      "Value2" : [15.82e6, 0.0]
+      "Value2" : [10.0, 0.0]
     },
     {
       "Name" : "top",
       "Dim" : 1,
-      "matId" : 6,
-      "Type" : 1, 
+      "matId" : 5,
+      "Type" : 0, 
       "normal" : [0.0, 1.0],
-      "Value2" : [0.0, 15.82e6]
+      "Value2" : [0.0, 0.0]
     }
   ]
 }

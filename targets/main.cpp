@@ -38,15 +38,11 @@ enum MatID{
 TPZGeoMesh* GenerateGeoMesh(std::string filename, json inputFile, std::string meshName = "GeoMesh");
 TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile);
 TPZCompMesh *CreateCMesh(TPZGeoMesh* gmesh, json inputFile); // H1 Approx Creator
-TPZCompMesh *CreateMPCompMesh(TPZGeoMesh* gmesh, json inputFile);
 void SetAnalysis(TPZLinearAnalysis* an, TPZCompMesh* cmesh);
 void PrintGeoMesh(TPZGeoMesh *gmesh);
 void PrintCompMesh(TPZCompMesh *cmesh);
 void gravityLoad(const TPZVec<REAL> &loc, TPZVec<REAL> &result);
 void inSituStress(const TPZVec<REAL> &loc, TPZVec<REAL> &result);
-
-// void Solve(TPZLinearAnalysis an);
-
 
 int main() {
 
@@ -54,7 +50,7 @@ int main() {
     TPZLogger::InitializePZLOG();
 #endif
 
-    std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Test2.json");
+    std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Test1.json");
 
     json fInputFile = json::parse(filejson,nullptr,true,true,true); 
 
@@ -68,9 +64,8 @@ int main() {
     PrintGeoMesh(gmesh);
 
     //---------------------------- Computational Mesh ---------------------------------------
-    TPZCompMesh *cmesh;
-    if(fHybridType) cmesh = CreateMPCompMesh(gmesh, fInputFile);
-    else cmesh = CreateCMesh(gmesh, fInputFile);
+    TPZCompMesh *cmesh = CreateCMesh(gmesh, fInputFile);
+    PrintGeoMesh(gmesh);
     PrintCompMesh(cmesh);
     
     //--------------------------------- Analysis  --------------------------------------------
@@ -100,18 +95,22 @@ TPZGeoMesh* GenerateGeoMesh(std::string filename, json inputFile, std::string me
 
     TPZManVector<std::map<std::string,int>,4> dim_name_and_physical_tag(4);
 
+    int dim = inputFile["Dimension"];
+
     for(auto& domain : inputFile["DomainData"]){
         if(domain.find("Name") == domain.end()) DebugStop(); // check if the information exists
-        dim_name_and_physical_tag[2][domain["Name"]] = domain["matId"];
+        dim_name_and_physical_tag[dim][domain["Name"]] = domain["matId"];
+    }
+
+    for(auto& fault : inputFile["FaultData"]){
+        if(fault.find("Name") == fault.end()) DebugStop();
+        dim_name_and_physical_tag[dim-1][fault["Name"]] = fault["matId"];
     }
 
     for(auto& bc : inputFile["BCs"]){
         if(bc.find("Name") == bc.end()) DebugStop(); 
         dim_name_and_physical_tag[bc["Dim"]][bc["Name"]] = bc["matId"];
     }
-
-    //dim_name_and_physical_tag[1]["Fault"] = EFault;
-    //dim_name_and_physical_tag[0]["FracEnd"] = EFracEnds;
 
     GeometryFine.SetDimNamePhysical(dim_name_and_physical_tag);
     gmesh = GeometryFine.GeometricGmshMesh(filename,nullptr,false);
@@ -212,6 +211,11 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile){
 
 TPZCompMesh *CreateCMesh(TPZGeoMesh* gmesh, json inputFile){
 
+    int fHybridType = inputFile["Simulation"]["ApproximationType"];
+    int pOrder = inputFile["Simulation"]["pOrder"];
+    int internalOrder = inputFile["Simulation"]["internalOrder"];
+
+
     int nLayers = inputFile["nLayers"];
     std::set<int> layerIds;
     std::map<int,REAL> Elas; // matId --> Elas
@@ -263,11 +267,14 @@ TPZCompMesh *CreateCMesh(TPZGeoMesh* gmesh, json inputFile){
 
     // Create and Set-Up Approximation Spaces
     TPZH1ApproxCreator approxCreator(gmesh);
-    approxCreator.ProbType() = ProblemType::EElastic;
-    approxCreator.HybridType() = HybridizationType::ENone;
+    approxCreator.SetProbType(ProblemType::EElastic);
+    if(fHybridType) approxCreator.SetHybridType(HybridizationType::EStandard); // EStandard, EStandardSquared, ESemi
+    else approxCreator.SetHybridType(HybridizationType::ENone);
+    //approxCreator.SetHybridizeBoundary(); //? how hybridized some bcs
     approxCreator.SetShouldCondense(false);
-    approxCreator.SetDefaultOrder(1);
-    approxCreator.SetExtraInternalOrder(1);
+    approxCreator.IsRigidBodySpaces() = true;
+    approxCreator.SetDefaultOrder(pOrder);
+    approxCreator.SetExtraInternalOrder(internalOrder);
 
 
     // Body Forces
@@ -289,10 +296,13 @@ TPZCompMesh *CreateCMesh(TPZGeoMesh* gmesh, json inputFile){
 
 
     // Add materials
-    //TPZElasticity2D *matElas = new TPZElasticity2D(EMatId, Ef, nuf, fxf, fyf, planestrain);
     TPZElasticity2D *matLayer = nullptr;
+    // TPZHybridElasticity2D *matLayer = nullptr;
+    // if(fHybridType) matLayer = dynamic_cast<TPZHybridElasticity2D*>(matLayer);
+
     for(int layId : layerIds){
-        matLayer = new TPZElasticity2D(layId, Elas[layId], nu[layId], fxf, fyf, planestress);
+        if(fHybridType) matLayer = new TPZHybridElasticity2D(layId, Elas[layId], nu[layId], fxf, fyf, planestress);
+        else matLayer = new TPZElasticity2D(layId, Elas[layId], nu[layId], fxf, fyf, planestress);
         matLayer->SetPreStress(preStress[layId][0], preStress[layId][1], preStress[layId][2], 0.0);
         //matLayer->SetForcingFunction(gravityLoad,1);
         approxCreator.InsertMaterialObject(matLayer);
@@ -319,90 +329,6 @@ TPZCompMesh *CreateCMesh(TPZGeoMesh* gmesh, json inputFile){
     else
         cmesh = approxCreator.CreateApproximationSpace();
     cmesh->SetName("CompMesh");
-
-    return cmesh;
-}
-
-TPZCompMesh *CreateMPCompMesh(TPZGeoMesh* gmesh, json inputFile){
-
-    // TPZApproxCreator approxCreator(gmesh);
-    // TPZH1ApproxCreator *h1approxCreator = dynamic_cast<TPZH1ApproxCreator*>(approxCreator); 
-    //downcasting—converting a base class pointer to a derived class pointer
-    // Input data
-    STATE grav = 9.81;
-    STATE rho = 2.8e3;
-    STATE Ef = 50e9;
-    STATE nuf = 0.25;
-    STATE fxf = 0; 
-    STATE fyf = 0;
-    TPZFMatrix<STATE> bcValue(4,2,0.0);
-    bcValue(0,0) = 0; // top x
-    bcValue(0,1) = -56e6; // top y
-    bcValue(1,0) = 0; // bottom x
-    bcValue(1,1) = 0; // bottom y
-    bcValue(2,0) = 0; // left x
-    bcValue(2,1) = 0; // left y
-    bcValue(3,0) = 0; // right x
-    bcValue(3,1) = 0; // right y
-    STATE Er = 50e9;
-    STATE nur = 0.25;
-    STATE fxr = 0;
-    STATE fyr = 0;
-    int planestrain = 0; // Plain strain state
-
-    // Create and Set-Up Approximation Spaces
-    TPZH1ApproxCreator approxCreator(gmesh);
-    approxCreator.ProbType() = ProblemType::EElastic;
-    approxCreator.HybridType() = HybridizationType::EStandard;
-    approxCreator.SetShouldCondense(false);
-    approxCreator.SetDefaultOrder(1);
-    approxCreator.SetExtraInternalOrder(0);
-
-    // Add Materials
-    //TPZElasticity2D *matElas = new TPZElasticity2D(EFarFieldId, Ef, nuf, fxf, fyf, planestrain);
-    //TPZElasticity2D *matReservoir = new TPZElasticity2D(EReservoirId,  Er, nur, fxr, fyr, planestrain);
-    TPZHybridElasticity2D *matElas = new TPZHybridElasticity2D(EMatId,  Er, nur, fxr, fyr, planestrain);
-
-    //matElas->SetForcingFunction(gravityLoad,1);
-    //matReservoir->SetForcingFunction(gravityLoad,1);
-    TPZFMatrix<STATE> pre_sigma(3,3,0.0);
-    pre_sigma(0,0) = 20e6; //pore pressure
-    pre_sigma(1,1) = 20e6;
-    pre_sigma(2,2) = 20e6;
-
-    //matReservoir->SetPreStress(pre_sigma(0,0), pre_sigma(1,1), pre_sigma(0,1), pre_sigma(2,2));
-
-    approxCreator.InsertMaterialObject(matElas);
-
-
-    // Add boundary conditions
-    TPZFMatrix<STATE> val1(2,2,0.0);
-    TPZVec<STATE> val2(2,0.0);
-    int DirType = 0;
-    int NeuType = 1;
-    
-    val2[0] = bcValue(1,0);
-    val2[1] = bcValue(1,1);
-    TPZBndCond *bottom = matElas->CreateBC(matElas, EbcBottom, DirType, val1, val2);
-    val2[0] = bcValue(0,0);
-    val2[1] = bcValue(0,1);
-    TPZBndCond *top = matElas->CreateBC(matElas, EbcTop, NeuType, val1, val2);
-    val2[0] = bcValue(2,0);
-    val2[1] = bcValue(2,1);
-    TPZBndCond *left = matElas->CreateBC(matElas, EbcLeft, DirType, val1, val2);
-    val2[0] = bcValue(3,0);
-    val2[1] = bcValue(3,1);
-    TPZBndCond *right = matElas->CreateBC(matElas, EbcRight, DirType, val1, val2);
-    approxCreator.InsertMaterialObject(bottom);
-    approxCreator.InsertMaterialObject(top);
-    approxCreator.InsertMaterialObject(left);
-    approxCreator.InsertMaterialObject(right);
-
-    TPZCompMesh *cmesh;
-    if(approxCreator.HybridType() == HybridizationType::ENone)
-        cmesh = approxCreator.CreateClassicH1ApproximationSpace();
-    else
-        cmesh = approxCreator.CreateApproximationSpace();
 
     return cmesh;
 }

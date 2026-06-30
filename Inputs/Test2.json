@@ -3,6 +3,8 @@
   "MeshDirectory" : "/home/marina/programming/Biot-Research/Biot/Meshes/quad.msh", 
   "Simulation" : {
     "ApproximationType" : 0, // Classic H1: 0, Hybrid H1: 1
+    "pOrder" : 1,
+    "internalOrder" : 0
   },
   "Dimension": 2,
   "Resolution": 1,

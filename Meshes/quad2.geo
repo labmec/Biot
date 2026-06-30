@@ -1,7 +1,7 @@
 // Gmsh project created on Fri Jul  5 14:35:05 2024
 SetFactory("OpenCASCADE");
 //+
-lc = 20;
+lc = 2;
 //+
 Point(1) = {0.0, 0, 0, lc};
 //+
@@ -39,7 +39,7 @@ Physical Point("dirY", 9) = {2};
 
 Transfinite Surface {1};
 //+
-Transfinite Curve {4, 2} = 2 Using Progression 1;
+//Transfinite Curve {4, 2} = 2 Using Progression 1;
 //+
 Transfinite Curve {3, 1} = 2 Using Progression 1;
 //+
