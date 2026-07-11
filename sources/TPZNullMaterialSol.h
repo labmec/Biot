@@ -20,7 +20,7 @@ public:
 
     int NSolutionVariables(int var) const override;
 
-    void Solution(const TPZVec<TPZMaterialDataT<STATE>> &datavec, int var, TPZVec<STATE> &sol) override;
+    void Solution(const TPZVec<TPZMaterialDataT<STATE>> &datavec, int var, TPZVec<STATE> &solOut) override;
 
     void Contribute(const TPZVec<TPZMaterialDataT<STATE>> &datavec, REAL weight,
                     TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef) override {}

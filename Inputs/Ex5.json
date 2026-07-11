@@ -16,7 +16,7 @@
       "Young" : 5.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82e6, -22.6e6, 10.0e5] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [15.82e6, -22.6e6, 0.0] //stress_xx, stress_yy, stress_xy
     },
     {
       "Name" : "layer_2",
@@ -24,7 +24,7 @@
       "Young" : 5.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82e6, -22.6e6, 10.0e5] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [15.82e6, -22.6e6, 0.0] //stress_xx, stress_yy, stress_xy
     },
     {
       "Name" : "layer_3",
@@ -32,7 +32,7 @@
       "Young" : 50.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [0, 0, 0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [15.82e6, -22.6e6, 0.0] //stress_xx, stress_yy, stress_xy
     },
     {
       "Name" : "layer_4",
@@ -40,7 +40,7 @@
       "Young" : 5.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82e6, -22.6e6, 10.0e5] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [15.82e6, -22.6e6, 0.0] //stress_xx, stress_yy, stress_xy
     },
     {
       "Name" : "layer_5",
@@ -48,14 +48,14 @@
       "Young" : 5.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [0, 0, 0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [15.82e6, -22.6e6, 0.0] //stress_xx, stress_yy, stress_xy
     }
   ],
   "FaultData" : [
     {
       "Name" : "Fault",
-      "matId" : 201,
-      "PreStress" : [15.82e6, -22.6e6, 10.0e5] //stress_xx, stress_yy, stress_xy
+      "matId" : 201
+      //"PreStress" : [15.82e6, -22.6e6, 0.0] //stress_xx, stress_yy, stress_xy
     }
   ],
   "InSitu_Stress" : {
@@ -71,7 +71,7 @@
       "matId" : 4,
       "Type" : 1, //Dirichlet: 0, Neumann: 1, Mixed: 2
       "normal" : [-1.0, 0.0],
-      "Value2" : [-15.82e6, -10.0e5]
+      "Value2" : [-15.82e6, 0.0]
     },
     {
       "Name" : "bottom",
@@ -87,7 +87,7 @@
       "matId" : 5,
       "Type" : 1, 
       "normal" : [1.0, 0.0],
-      "Value2" : [0, 10.0e5]
+      "Value2" : [15.82e6, 0.0]
     },
     {
       "Name" : "top",
@@ -95,7 +95,7 @@
       "matId" : 6,
       "Type" : 1, 
       "normal" : [0.0, 1.0],
-      "Value2" : [10.0e5, -22.6e6]
+      "Value2" : [0.0, -22.6e6]
     }
     // {
     //   "Name" : "dirXY",

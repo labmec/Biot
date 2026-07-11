@@ -1,8 +1,8 @@
 {
   "MeshName" : "Test1",
-  "MeshDirectory" : "/home/marina/programming/Biot-Research/Biot/Meshes/quad2.msh", 
+  "MeshDirectory" : "/home/marina/programming/Biot-Research/Biot/Meshes/quad9.msh", 
   "Simulation" : {
-    "ApproximationType" : 1, // Classic H1: 0, Hybrid H1: 1
+    "ApproximationType" : 1, // Classic H1: 0, Hybrid H1: 1, Both: 2
     "pOrder" : 1,
     "internalOrder" : 2
   },
@@ -16,7 +16,7 @@
       "Young" : 5.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [10.0, 10.0, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [-5.0, -10.0, 0.0] //stress_xx, stress_yy, stress_xy
     }
   ],
   "InSitu_Stress" : {
@@ -30,9 +30,9 @@
       "Name" : "left",
       "Dim" : 1,
       "matId" : 2,
-      "Type" : 0, //Dirichlet: 0, Neumann: 1, Mixed: 2
+      "Type" : 1, //Dirichlet: 0, Neumann: 1, Mixed: 2
       "normal" : [-1.0, 0.0],
-      "Value2" : [0.0, 0.0]
+      "Value2" : [5.0, 0.0]
     },
     // {
     //   "Name" : "bottom",
@@ -57,15 +57,15 @@
       "matId" : 4,
       "Type" : 1, 
       "normal" : [1.0, 0.0],
-      "Value2" : [10.0, 0.0]
+      "Value2" : [-5.0, 0.0]
     },
     {
       "Name" : "top",
       "Dim" : 1,
       "matId" : 5,
-      "Type" : 0, 
+      "Type" : 1, 
       "normal" : [0.0, 1.0],
-      "Value2" : [0.0, 0.0]
+      "Value2" : [0.0, -20.0]
     }
   ]
 }
