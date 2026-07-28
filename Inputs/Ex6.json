@@ -1,6 +1,6 @@
 {
-  "MeshName" : "Test2",
-  "MeshDirectory" : "/home/marina/programming/Biot-Research/Biot/Meshes/quad2.msh", 
+  "MeshName" : "Example6",
+  "MeshDirectory" : "/home/marina/programming/Biot-Research/Biot/Meshes/tri-1layer.msh", 
   "Simulation" : {
     "ApproximationType" : 1, // Classic H1: 0, Hybrid H1: 1
     "pOrder" : 2,
@@ -11,16 +11,31 @@
   "nLayers" : 1,
   "DomainData" : [
     {
-      "Name" : "domain",
-      "matId" : 1,
-      "Young" : 5.0,
-      "Poisson" : 0.25,
+      "Name" : "layer_1",
+      "matId" : 101,
+      "Young" : 46032,
+      "Poisson" : 0.37,
       "Density" : 2700,
-      "PreStress" : [10.82e6, 15.82e6, 10.0e5] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [19.80, 11.2, 0.0] //stress_xx, stress_yy, stress_xy
+    }
+    // {
+    //   "Name" : "layer_2",
+    //   "matId" : 102,
+    //   "Young" : 50000.0,
+    //   "Poisson" : 0.25,
+    //   "Density" : 2700,
+    //   "PreStress" : [15.82, -22.6, 0.0] //stress_xx, stress_yy, stress_xy
+    // }
+  ],
+  "FaultData" : [
+    {
+      "Name" : "Fault",
+      "matId" : 201
+      //"PreStress" : [15.82e6, -22.6e6, 0.0] //stress_xx, stress_yy, stress_xy
     }
   ],
   "InSitu_Stress" : {
-    "Sigma_v" : 15.82e6, // MPa/km
+    "Sigma_v" : 22.6e6, // MPa/km
     "Sigma_H" : 15.82e6,
     "Sigma_h" : 15.82e6,
     "Pore-Pressure" : 1.0e6
@@ -32,7 +47,7 @@
       "matId" : 4,
       "Type" : 1, //Dirichlet: 0, Neumann: 1, Mixed: 2
       "normal" : [-1.0, 0.0],
-      "Value2" : [-10.82e6, -10.0e5]
+      "Value2" : [19.80, 0.0]
     },
     {
       "Name" : "bottom",
@@ -40,7 +55,7 @@
       "matId" : 7,
       "Type" : 0, 
       "normal" : [0.0, -1.0],
-      "Value2" : [0.0, 0.0]
+      "Value2" : [0, 0] 
     },
     {
       "Name" : "right",
@@ -48,7 +63,7 @@
       "matId" : 5,
       "Type" : 1, 
       "normal" : [1.0, 0.0],
-      "Value2" : [10.82e6, 10.0e5]
+      "Value2" : [0.0, -19.80]
     },
     {
       "Name" : "top",
@@ -56,21 +71,13 @@
       "matId" : 6,
       "Type" : 1, 
       "normal" : [0.0, 1.0],
-      "Value2" : [10.0e5, 15.82e6]
+      "Value2" : [0.0, -11.2]
     }
     // {
     //   "Name" : "dirXY",
     //   "Dim" : 0,
     //   "matId" : 8,
     //   "Type" : 0, 
-    //   "Value2" : [0.0, 0.0]
-    // },
-    // {
-    //   "Name" : "dirY",
-    //   "Dim" : 0,
-    //   "matId" : 8,
-    //   "Type" : 2, 
-    //   "Value1" : [[0.0, 0.0],[0.0, 1.0e9]], // constrained in y
     //   "Value2" : [0.0, 0.0]
     // }
   ]

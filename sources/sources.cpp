@@ -1,4 +1,5 @@
 #include "sources.h"
+#include "TPZNullMaterialCS.h"
 #include "TPZNullMaterialSol.h"
 
 TPZGeoMesh* GenerateGeoMesh(std::string filename, json inputFile, std::string meshName) {
@@ -132,12 +133,18 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile, int HybridType, s
     // if(fHybridType) matLayer = dynamic_cast<TPZHybridElasticity2D*>(matLayer);
 
     for(int layId : layerIds){
-        if(HybridType) matLayer = new TPZHybridElasticity2D(layId, Elas[layId], nu[layId], fxf, fyf, planestress);
-        else matLayer = new TPZElasticity2D(layId, Elas[layId], nu[layId], fxf, fyf, planestress);
+        if(HybridType) matLayer = new TPZHybridElasticity2D(layId, Elas[layId], nu[layId], fxf, fyf, planestrain);
+        else matLayer = new TPZElasticity2D(layId, Elas[layId], nu[layId], fxf, fyf, planestrain);
         matLayer->SetPreStress(preStress[layId][0], preStress[layId][1], preStress[layId][2], 0.0);
-        //matLayer->SetForcingFunction(gravityLoad,1);
+        //matLayer->SetForcingFunction(inSituStress,1);
         approxCreator.InsertMaterialObject(matLayer);
     }
+
+    // for(auto& fault : inputFile["FaultData"]){
+    //     int matId = fault["matId"];
+    //     TPZNullMaterialCS<STATE> *matFrac = new TPZNullMaterialCS<STATE>(matId, 1, 2);
+    //     approxCreator.InsertMaterialObject(matFrac);
+    // }
 
 
     // Add boundary conditions
@@ -179,6 +186,67 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile, int HybridType, s
     return cmesh;
 }
 
+void DuplicateConnectFracture(TPZGeoMesh *gmesh, TPZCompMesh *cmesh, std::set<int> fracBcIds){
+    int nels = gmesh->NElements();
+    std::set<int> neighIndices; // set to store el indeces that has already been analyzed
+    for (int64_t el = 0; el < cmesh->NElements(); el++){
+        TPZCompEl *cel = cmesh->Element(el);
+        TPZGeoEl *gel = cel->Reference();
+        int meshDim = gmesh->Dimension();
+        int elDim = gel->Dimension(); 
+        int matId = gel->MaterialId();
+
+
+        if(elDim != meshDim - 1 || matId < 200) continue; 
+        if(neighIndices.find(gel->Index()) != neighIndices.end()) continue;
+
+        int iside = gel->NSides() - 1;
+
+        TPZGeoElSide gelside(gel, iside);
+        TPZCompElSide celside = gelside.Reference();
+
+        TPZGeoElSide neighBCside = gelside.HasNeighbour(200); 
+        TPZGeoElSide neighDarcyside = gelside.HasNeighbour(EMatId); 
+        TPZGeoElSide neighDarcy2side = neighDarcyside.HasNeighbour(EMatId);
+
+        TPZGeoElSide neighbour = gelside.Neighbour();
+        int neighIndex = 0;
+        while(neighbour != gelside){
+            if(fracBcIds.find(neighbour.Element()->MaterialId()) != fracBcIds.end()){
+                neighIndex = neighbour.Element()->Index();
+                auto it = neighIndices.find(neighIndex);
+                if (it == neighIndices.end()){
+                    neighBCside = neighbour;
+                    neighIndices.insert(neighIndex);
+                }
+            }
+            neighbour = neighbour.Neighbour();
+        }
+
+
+        if (!neighBCside || !neighDarcyside || !neighDarcy2side) DebugStop();
+
+
+        TPZCompElSide celBCneigh = neighBCside.Reference(); 
+        TPZCompElSide celDarcyneigh = neighDarcyside.Reference();
+        TPZCompElSide celDarcy2neigh = neighDarcy2side.Reference();
+
+        int connRight = celDarcyneigh.ConnectIndex();
+        int connLeft = celDarcy2neigh.ConnectIndex();
+
+        celDarcyneigh.SplitConnect(celDarcy2neigh);
+
+        connRight = celDarcyneigh.ConnectIndex();
+        connLeft = celDarcy2neigh.ConnectIndex();
+
+        celside.Element()->SetConnectIndex(0, connRight);
+        celBCneigh.Element()->SetConnectIndex(0, connLeft);
+
+        cmesh->ExpandSolution();
+        cmesh->ComputeNodElCon();
+    }
+}
+
 
 void SetAnalysis(TPZLinearAnalysis* an, TPZCompMesh* cmesh){
 
@@ -201,14 +269,14 @@ void SetAnalysis(TPZLinearAnalysis* an, TPZCompMesh* cmesh){
 
 void gravityLoad(const TPZVec<REAL> &loc, TPZVec<REAL> &result){
     STATE grav = 9.81;
-    STATE rho = 2.8e3; //! Ver
+    STATE rho = 2.8e3; //! Ver pegar de cada layer
     result[0] = 0;
     result[1] = rho*grav*loc[1];
     result[2] = 0;
 }
 
 void inSituStress(const TPZVec<REAL> &loc, TPZVec<REAL> &result){
-    std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Example5.json");
+    std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Ex1.json");
 
     json inputFile = json::parse(filejson,nullptr,true,true,true); 
 
@@ -216,7 +284,7 @@ void inSituStress(const TPZVec<REAL> &loc, TPZVec<REAL> &result){
     STATE sigH = inputFile["InSitu_Stress"]["Sigma_H"];
     STATE sigh = inputFile["InSitu_Stress"]["Sigma_h"];
     STATE Pp = inputFile["InSitu_Stress"]["Pore-Pressure"];
-    result[0] = sigH*loc[1];
+    result[0] = sigh*loc[1];
     result[1] = sigV*loc[1];
     result[2] = 0;
 }
@@ -272,7 +340,7 @@ TPZVec<REAL> ComputeError(TPZVec<TPZCompEl*> &celVecH1, TPZVec<TPZCompEl*> &celV
         elSolMat(H1index,0) = std::sqrt(errorVec[0]);
         error += errorVec[0];
 
-        // elenergyVec = CalcEnergy(celVecH1[el], celVecHyb[el]);
+        // elenergyVec = CalcElementEnergy(celVecH1[el], celVecHyb[el]);
         // energyH1 += elenergyVec[0];
         // energyHyb += elenergyVec[1];
     }
@@ -313,12 +381,12 @@ TPZVec<STATE> CalcElementError(TPZCompEl* celH1, TPZCompEl* celHyb){
     TPZFNMatrix<9,REAL> jac(dim,dim),jacinv(dim,dim),axes(dim,3); //jacobian
     REAL detjac;
 
-    TPZVec<STATE> stressH1(dim, 0.0);
-    TPZVec<STATE> strainH1(dim, 0.0);
-    TPZVec<STATE> stressHyb(dim, 0.0);
-    TPZVec<STATE> strainHyb(dim, 0.0);
-    TPZFMatrix<STATE> D(dim, dim, 0.0);
-    TPZFMatrix<STATE> InvD(dim, dim, 0.0); 
+    TPZVec<STATE> stressH1(3, 0.0);
+    TPZVec<STATE> strainH1(3, 0.0);
+    TPZVec<STATE> stressHyb(3, 0.0);
+    TPZVec<STATE> strainHyb(3, 0.0);
+    TPZFNMatrix<9,REAL> D(3, 3, 0.0);
+    TPZFNMatrix<9,REAL> InvD(3, 3, 0.0); 
     REAL detD = 0;
 
     // Performing numerical integration
@@ -333,21 +401,23 @@ TPZVec<STATE> CalcElementError(TPZCompEl* celH1, TPZCompEl* celHyb){
         celHyb->Solution(xi, 11, strainHyb);
 
         matElas->ComputeD(xi, D); //! DID SOMETHING ILEGAL
-        //D.DeterminantInverse(detD, InvD);
+        D.DeterminantInverse(detD, InvD);
 
-        TPZFMatrix<STATE> fluxH1(dim, 1, 0.0);
-        for (int i = 0; i < dim; i++) {
-            for (int j = 0; j < dim; j++) {
+        TPZFMatrix<STATE> fluxH1(3, 1, 0.0);
+        TPZManVector<STATE,3> PreStress = matElas->GetPreStress();
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
                 fluxH1(i,0) += D(i,j)*strainH1[j];
             }
+            fluxH1(i,0) += PreStress[i];
         }
 
         //? strain D strain 
-        for (int i = 0; i < 3; i++) { 
-            for (int j = 0; j < 3; j++) {
-                error += (strainH1[i]-strainHyb[i])*D(i,j)*(strainH1[j]-strainHyb[j]);
-            }
-        }
+        // for (int i = 0; i < 3; i++) { 
+        //     for (int j = 0; j < 3; j++) {
+        //         error += (strainH1[i]-strainHyb[i])*D(i,j)*(strainH1[j]-strainHyb[j]);
+        //     }
+        // }
 
         //? stress D^-1 stress 
         // for (int i = 0; i < 3; i++) { 
@@ -357,11 +427,11 @@ TPZVec<STATE> CalcElementError(TPZCompEl* celH1, TPZCompEl* celHyb){
         // }
 
         //? (stressHyb - D strainH1) D^-1 (stressHyb - D strainH1)
-        // for (int i = 0; i < 3; i++) {
-        //     for (int j = 0; j < 3; j++) {
-        //         error += (fluxH1(i,0)-stressHyb[i])*InvD(i,j)*(fluxH1(j,0)-stressHyb[j]);
-        //     }
-        // }
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                error += (fluxH1(i,0)-stressHyb[i])*InvD(i,j)*(fluxH1(j,0)-stressHyb[j]);
+            }
+        }
 
         errorVec[0] += error*weight*fabs(detjac);
     }
@@ -369,7 +439,7 @@ TPZVec<STATE> CalcElementError(TPZCompEl* celH1, TPZCompEl* celHyb){
     return errorVec;
 }
 
-TPZVec<REAL> CalcEnergy(TPZCompEl* celH1, TPZCompEl* celHyb){
+TPZVec<REAL> CalcElementEnergy(TPZCompEl* celH1, TPZCompEl* celHyb){
 
     REAL energyH1 = 0.;
     REAL energyHyb = 0.;

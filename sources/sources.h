@@ -47,6 +47,8 @@ TPZGeoMesh* GenerateGeoMesh(std::string filename, json inputFile, std::string me
 
 TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile, int HybridType, std::set<int> &matIDpostProcess);
 
+void DuplicateConnectFracture(TPZGeoMesh *gmesh, TPZCompMesh *cmesh);
+
 void SetAnalysis(TPZLinearAnalysis* an, TPZCompMesh* cmesh);
 
 void GetCompEls(TPZGeoMesh* gmesh, TPZCompMesh *cmeshH1, TPZCompMesh *cmeshHyb, TPZVec<TPZCompEl*> &celVecH1, TPZVec<TPZCompEl*> &celVecHyb, std::set<int> matId);
@@ -55,7 +57,7 @@ TPZVec<REAL> ComputeError(TPZVec<TPZCompEl*> &celVecH1, TPZVec<TPZCompEl*> &celV
 
 TPZVec<REAL> CalcElementError(TPZCompEl* celH1, TPZCompEl* celHyb);
 
-TPZVec<REAL> CalcEnergy(TPZCompEl* celH1, TPZCompEl* celHyb);
+TPZVec<REAL> CalcElementEnergy(TPZCompEl* celH1, TPZCompEl* celHyb);
 
 void PrintGeoMesh(TPZGeoMesh *gmesh);
 

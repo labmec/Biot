@@ -46,7 +46,7 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
     PrintCompMesh(cmesh_mult);
     PrintGeoMesh(gmesh);
     std::set<int> matIDvolels;
-    matIDvolels.insert(1); //! Hard coded
+    matIDvolels.insert(1); //! TEM QUE MUDAR ISSO, VAI DAR ERRO EM OUTRAS MALHAS
 
     int64_t nels = gmesh->NElements();
     int64_t nelsH1 = cmesh->NElements();
@@ -54,9 +54,9 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
     TPZVec<TPZCompEl*> celHyb(nels, nullptr);
     TPZSolutionMatrix &solMat = cmesh->ElementSolution();
     solMat.Redim(nelsH1,1);
-    GetCompEls(gmesh, cmesh, cmesh_mult, celH1, celHyb, matIDvolels);
-    TPZVec<STATE> error = ComputeError(celH1, celHyb, solMat);
-    outfile << cmesh_mult->NEquations() << "\t" << error[0] << std::endl;
+    // GetCompEls(gmesh, cmesh, cmesh_mult, celH1, celHyb, matIDvolels);
+    // TPZVec<STATE> error = ComputeError(celH1, celHyb, solMat);
+    // outfile << cmesh_mult->NEquations() << "\t" << error[0] << std::endl;
     // TPZVec<STATE> energy = ComputeError(celH1, celHyb, solMat);
     // outfile << cmesh_mult->NEquations() << "\t" << energy[0] << "\t" << energy[1] << std::endl;
 
@@ -76,6 +76,9 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
         vtk.Do();
     }
 
+    // matIDpostProcess.clear();
+    // matIDpostProcess.insert(201);
+
     {
         const std::string plotfile = fSigTSigN;
         constexpr int vtkRes{0};
@@ -84,6 +87,8 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
         vtk.SetNThreads(0);
         vtk.Do();
     }
+
+
 }
 
 
@@ -96,8 +101,9 @@ int main() {
     gRefDBase.InitializeRefPatterns(2);
     
     std::ofstream fileEnergy("energy.txt", std::ios::app);
-    fileEnergy << "\nnEq " << " EnergyH1" << " EnergyHyb" << std::endl;
-    int refMax = 3;
+    fileEnergy << "\nnEq " << " Error" << std::endl;
+    //fileEnergy << "\nnEq " << " EnergyH1" << " EnergyHyb" << std::endl;
+    int refMax = 0;
     for(int ref = 0; ref <= refMax; ref++)
         PrimalElasticity2D(ref, fileEnergy);
     return 0;
