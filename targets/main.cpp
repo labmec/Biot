@@ -2,11 +2,11 @@
 
 void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
 
-#ifdef PZ_LOG
-    TPZLogger::InitializePZLOG();
-#endif
+// #ifdef PZ_LOG
+//     TPZLogger::InitializePZLOG();
+// #endif
 
-    std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Test1.json");
+    std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Ex7.json");
 
     json fInputFile = json::parse(filejson,nullptr,true,true,true); 
 
@@ -28,45 +28,45 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
 
     //---------------------------- Computational Mesh ---------------------------------------
     std::set<int> matIDpostProcess;
-    TPZCompMesh *cmesh = CreateCompMesh(gmesh, fInputFile, 0, matIDpostProcess);
+    //TPZCompMesh *cmesh = CreateCompMesh(gmesh, fInputFile, 0, matIDpostProcess);
     TPZCompMesh *cmesh_mult = CreateCompMesh(gmesh, fInputFile, 1, matIDpostProcess);
 
     // PrintCompMesh(cmesh);
     // PrintCompMesh(cmesh_mult);
     
     //--------------------------------- Analysis  --------------------------------------------
-    TPZLinearAnalysis *AnH1 = new TPZLinearAnalysis(cmesh);
+    //TPZLinearAnalysis *AnH1 = new TPZLinearAnalysis(cmesh);
     TPZLinearAnalysis *AnHyb = new TPZLinearAnalysis(cmesh_mult, RenumType::ENone);
 
-    SetAnalysis(AnH1, cmesh);
+    //SetAnalysis(AnH1, cmesh);
     SetAnalysis(AnHyb, cmesh_mult);
 
     //--------------------------------- Post-Process / Error Estimation  --------------------------------------------
-    PrintCompMesh(cmesh);
+    //PrintCompMesh(cmesh);
     PrintCompMesh(cmesh_mult);
     PrintGeoMesh(gmesh);
     std::set<int> matIDvolels;
     matIDvolels.insert(1); //! TEM QUE MUDAR ISSO, VAI DAR ERRO EM OUTRAS MALHAS
 
-    int64_t nels = gmesh->NElements();
-    int64_t nelsH1 = cmesh->NElements();
-    TPZVec<TPZCompEl*> celH1(nels, nullptr); 
-    TPZVec<TPZCompEl*> celHyb(nels, nullptr);
-    TPZSolutionMatrix &solMat = cmesh->ElementSolution();
-    solMat.Redim(nelsH1,1);
+    // int64_t nels = gmesh->NElements();
+    // int64_t nelsH1 = cmesh->NElements();
+    // TPZVec<TPZCompEl*> celH1(nels, nullptr); 
+    // TPZVec<TPZCompEl*> celHyb(nels, nullptr);
+    // TPZSolutionMatrix &solMat = cmesh->ElementSolution();
+    // solMat.Redim(nelsH1,1);
     // GetCompEls(gmesh, cmesh, cmesh_mult, celH1, celHyb, matIDvolels);
     // TPZVec<STATE> error = ComputeError(celH1, celHyb, solMat);
     // outfile << cmesh_mult->NEquations() << "\t" << error[0] << std::endl;
     // TPZVec<STATE> energy = ComputeError(celH1, celHyb, solMat);
     // outfile << cmesh_mult->NEquations() << "\t" << energy[0] << "\t" << energy[1] << std::endl;
 
-    {
-        const std::string plotfile = fMeshName + "_H1";
-        constexpr int vtkRes{0};
-        TPZManVector<std::string, 3> fields = {"Displacement", "Pressure", "SigmaX", "SigmaY", "TauXY", "EstimatedError"};
-        auto vtk = TPZVTKGenerator(cmesh, fields, plotfile, vtkRes);
-        vtk.Do();
-    }
+    // {
+    //     const std::string plotfile = fMeshName + "_H1";
+    //     constexpr int vtkRes{0};
+    //     TPZManVector<std::string, 3> fields = {"Displacement", "Pressure", "SigmaX", "SigmaY", "TauXY", "EstimatedError"};
+    //     auto vtk = TPZVTKGenerator(cmesh, fields, plotfile, vtkRes);
+    //     vtk.Do();
+    // }
 
     {
         const std::string plotfile = fMeshName + "_Hybrid";
@@ -76,8 +76,11 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
         vtk.Do();
     }
 
-    // matIDpostProcess.clear();
-    // matIDpostProcess.insert(201);
+    PrintCompMesh(cmesh_mult);
+    PrintGeoMesh(gmesh);
+
+    matIDpostProcess.clear();
+    matIDpostProcess.insert(201);
 
     {
         const std::string plotfile = fSigTSigN;

@@ -1,6 +1,6 @@
 {
   "MeshName" : "Test2",
-  "MeshDirectory" : "/home/marina/programming/Biot-Research/Biot/Meshes/quad2.msh", 
+  "MeshDirectory" : "/home/marina/programming/Biot-Research/Biot/Meshes/frac-struct.msh", 
   "Simulation" : {
     "ApproximationType" : 1, // Classic H1: 0, Hybrid H1: 1
     "pOrder" : 2,
@@ -17,6 +17,13 @@
       "Poisson" : 0.25,
       "Density" : 2700,
       "PreStress" : [10.82e6, 15.82e6, 10.0e5] //stress_xx, stress_yy, stress_xy
+    }
+  ],
+  "FaultData" : [
+    {
+      "Name" : "Fault",
+      "matId" : 201
+      //"PreStress" : [15.82e6, -22.6e6, 0.0] //stress_xx, stress_yy, stress_xy
     }
   ],
   "InSitu_Stress" : {

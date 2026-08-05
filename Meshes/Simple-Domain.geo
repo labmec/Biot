@@ -84,13 +84,20 @@ BooleanFragments
 Physical Surface("Domain") = Surface{:};
 
 // Reservoir
-reservoir[] = Surface In BoundingBox
+reservoir1[] = Surface In BoundingBox
 {
 24.9,29.9,-1,
+55.6,60.1, 1
+};
+
+reservoir2[] = Surface In BoundingBox
+{
+48.1,29.9,-1,
 75.1,60.1, 1
 };
 
-Physical Surface("Reservoir") = {reservoir[]};
+Physical Surface("Reservoir_1") = {reservoir1[]};
+Physical Surface("Reservoir_2") = {reservoir2[]};
 Physical Surface("Far-Field") = {1,2};
 
 // (Alternative if your Gmsh version does not support deleting from arrays,

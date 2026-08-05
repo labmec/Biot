@@ -12,6 +12,8 @@
 #include "TPZMultiphysicsCompMesh.h"
 #include "TPZApproxCreator.h"
 #include "TPZH1ApproxCreator.h"
+#include "TPZNullMaterialCS.h"
+#include "TPZNullMaterialSol.h"
 #include "TPZSimpleTimer.h"
 #include "pzbuildmultiphysicsmesh.h"
 #include "TPZVTKGenerator.h"

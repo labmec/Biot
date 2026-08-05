@@ -1,7 +1,7 @@
 // Gmsh project created on Fri Jul  5 14:35:05 2024
 SetFactory("OpenCASCADE");
 //+
-lc = 2;
+lc = 1;
 //+
 Point(1) = {0.0, 0, 0, lc};
 //+
@@ -11,6 +11,10 @@ Point(3) = {1.0, 1.0, 0, lc};
 //+
 Point(4) = {0.0, 1.0, 0, lc};
 //+
+Point(5) = {0.0, 0.5, 0, lc};
+//+
+Point(6) = {1.0, 0.5, 0, lc};
+//+
 Line(1) = {1, 2};
 //+
 Line(2) = {2, 3};
@@ -18,6 +22,8 @@ Line(2) = {2, 3};
 Line(3) = {3, 4};
 //+
 Line(4) = {4, 1};
+//+
+Line(5) = {5, 6};
 //+
 Curve Loop(1) = {2, 3, 4, 1};
 //+
@@ -32,6 +38,8 @@ Physical Curve("top", 7) = {3};
 Physical Curve("left", 4) = {4};
 //+
 Physical Surface("domain", 1) = {1};
+//+
+Physical Curve("Fault", 2) = {5};
 //+
 Physical Point("dirXY", 8) = {1};
 

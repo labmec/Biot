@@ -1,6 +1,5 @@
 #include "sources.h"
-#include "TPZNullMaterialCS.h"
-#include "TPZNullMaterialSol.h"
+#include "TPZNullMaterial.h"
 
 TPZGeoMesh* GenerateGeoMesh(std::string filename, json inputFile, std::string meshName) {
     
@@ -45,6 +44,7 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile, int HybridType, s
 
     int nLayers = inputFile["nLayers"];
     std::set<int> layerIds;
+    std::set<int> faultIds;
     std::map<int,REAL> Elas; // matId --> Elas
     std::map<int,REAL> nu; // matId --> nu
     std::map<int,REAL> rho; // matId --> rho
@@ -69,6 +69,12 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile, int HybridType, s
         preStressVec[1] = layer["PreStress"][1];
         preStressVec[2] = layer["PreStress"][2];
         preStress[layer["matId"]] = preStressVec;
+    }
+
+    for(auto& fault : inputFile["FaultData"]){
+        if(fault.find("Name") == fault.end()) DebugStop(); // check if the information exists
+        int faultId = fault["matId"];
+        faultIds.insert(faultId);
     }
 
     for(auto& bc : inputFile["BCs"]){
@@ -140,13 +146,6 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile, int HybridType, s
         approxCreator.InsertMaterialObject(matLayer);
     }
 
-    // for(auto& fault : inputFile["FaultData"]){
-    //     int matId = fault["matId"];
-    //     TPZNullMaterialCS<STATE> *matFrac = new TPZNullMaterialCS<STATE>(matId, 1, 2);
-    //     approxCreator.InsertMaterialObject(matFrac);
-    // }
-
-
     // Add boundary conditions
     TPZFMatrix<STATE> val1(2,2,0.0);
     TPZVec<STATE> val2(2,0.0);
@@ -166,7 +165,7 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile, int HybridType, s
         cmesh = approxCreator.CreateApproximationSpace();
         CompMeshName = "CompMesh_Hyb";
     }
-    else{
+    else{ 
         cmesh = approxCreator.CreateClassicH1ApproximationSpace();
         CompMeshName = "CompMesh_H1";
     }
@@ -181,6 +180,40 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile, int HybridType, s
         auto nullmat = new TPZNullMaterialSol(LagMatId, dim, nstate);
         cmesh->InsertMaterialObject(nullmat);
         matIDpostProcess.insert(LagMatId);
+    }
+
+    if (auto* cmesh_mult = dynamic_cast<TPZMultiphysicsCompMesh*>(cmesh)) {
+        auto& meshvec = cmesh_mult->MeshVector();
+        TPZCompMesh* flux_mesh = meshvec[0];
+        for(int faultId : faultIds){
+            TPZNullMaterial<STATE> *matFrac0 = new TPZNullMaterial<STATE>(faultId, 1, 2);
+            TPZNullMaterialSol *matFrac = new TPZNullMaterialSol(faultId, 1, 2);
+            flux_mesh->InsertMaterialObject(matFrac0);
+            cmesh->InsertMaterialObject(matFrac);
+        }
+
+        for (int el = 0; el < gmesh->NElements(); el++){
+        
+            TPZGeoEl* gel = gmesh->Element(el);
+        
+            int elId = gel->MaterialId();
+        
+            if (elId != LagMatId) continue;
+        
+            int nsides = gel->NSides();
+            int nnodes = gel->NCornerNodes();
+        
+            for(int side = nnodes; side < nsides; side++){
+                TPZGeoElSide gelside(gel, side);
+                for(int faultId : faultIds){
+                    bool hasFaultNeigh = gelside.HasNeighbour(faultId); 
+                    if (hasFaultNeigh) {
+                        gel->SetMaterialId(faultId);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     return cmesh;
