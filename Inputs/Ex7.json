@@ -3,6 +3,8 @@
   "MeshDirectory" : "/home/marina/programming/Biot-Research/Biot/Meshes/Example7.msh", 
   "Simulation" : {
     "ApproximationType" : 1, // Classic H1: 0, Hybrid H1: 1
+    "Steps" : 10,
+    "PostProcFault" : 1, // All Lagrange els: 0, Only Fault els: 1
     "pOrder" : 2,
     "internalOrder" : 2
   },
@@ -16,7 +18,8 @@
       "Young" : 5000.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82, -22.6, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [7.0, -10.0, 0.0], //stress_xx, stress_yy, stress_xy
+      "StepStress" : [0.0, 0.0, 0.0]
     },
     {
       "Name" : "layer_12",
@@ -24,7 +27,8 @@
       "Young" : 5000.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82, -22.6, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [7.0, -10.0, 0.0], //stress_xx, stress_yy, stress_xy
+      "StepStress" : [0.0, 0.0, 0.0]
     },
     {
       "Name" : "layer_21",
@@ -32,7 +36,8 @@
       "Young" : 50000.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82, -22.6, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [7.0, -10.0, 0.0], //stress_xx, stress_yy, stress_xy
+      "StepStress" : [0.0, 0.0, 0.0]
     },
     {
       "Name" : "layer_22",
@@ -40,7 +45,8 @@
       "Young" : 50000.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82, -22.6, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [7.0, -10.0, 0.0], //stress_xx, stress_yy, stress_xy
+      "StepStress" : [0.0, 0.0, 0.0]
     },
     {
       "Name" : "layer_31",
@@ -48,7 +54,8 @@
       "Young" : 5000.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82, -22.6, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [7.0, -10.0, 0.0], //stress_xx, stress_yy, stress_xy
+      "StepStress" : [-4.0, -4.0, 0.0] 
     },
     {
       "Name" : "layer_32",
@@ -56,7 +63,8 @@
       "Young" : 5000.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [10.82, -27.6, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [7.0, -10.0, 0.0], //stress_xx, stress_yy, stress_xy
+      "StepStress" : [0.0, 0.0, 0.0]
     },
     {
       "Name" : "layer_41",
@@ -64,7 +72,8 @@
       "Young" : 50000.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82, -22.6, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [7.0, -10.0, 0.0], //stress_xx, stress_yy, stress_xy
+      "StepStress" : [0.0, 0.0, 0.0]      
     },
     {
       "Name" : "layer_42",
@@ -72,7 +81,8 @@
       "Young" : 50000.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82, -22.6, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [7.0, -10.0, 0.0], //stress_xx, stress_yy, stress_xy
+      "StepStress" : [0.0, 0.0, 0.0]
     },
     {
       "Name" : "layer_51",
@@ -80,7 +90,8 @@
       "Young" : 5000.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82, -22.6, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [7.0, -10.0, 0.0], //stress_xx, stress_yy, stress_xy
+      "StepStress" : [0.0, 0.0, 0.0]
     },
     {
       "Name" : "layer_52",
@@ -88,7 +99,8 @@
       "Young" : 5000.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [15.82, -22.6, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [7.0, -10.0, 0.0], //stress_xx, stress_yy, stress_xy
+      "StepStress" : [0.0, 0.0, 0.0]
     }
   ],
   "FaultData" : [
@@ -106,12 +118,12 @@
   },
   "BCs": [
     {
-      "Name" : "left",
+      "Name" : "left", //DO NOT KNOW
       "Dim" : 1,
       "matId" : 4,
       "Type" : 1, //Dirichlet: 0, Neumann: 1, Mixed: 2
       "normal" : [-1.0, 0.0],
-      "Value2" : [-15.82, 0.0]
+      "Value2" : [-7.0, 0.0]
     },
     {
       "Name" : "bottom",
@@ -127,7 +139,7 @@
       "matId" : 5,
       "Type" : 1, 
       "normal" : [1.0, 0.0],
-      "Value2" : [15.82, 0.0]
+      "Value2" : [7.0, 0.0]
     },
     {
       "Name" : "top",
@@ -135,7 +147,7 @@
       "matId" : 6,
       "Type" : 1, 
       "normal" : [0.0, 1.0],
-      "Value2" : [0.0, -22.6]
+      "Value2" : [0.0, -10.0]
     }
     // {
     //   "Name" : "dirXY",

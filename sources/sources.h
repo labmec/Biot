@@ -5,7 +5,9 @@
 #include <iostream>
 #include "pzlog.h"
 #include <Elasticity/TPZElasticity2D.h>
+#include <Elasticity/TPZElasticity3D.h>
 #include <Elasticity/TPZHybridElasticity2D.h>
+#include <Elasticity/TPZHybridElasticity3D.h>
 #include <TPZLinearAnalysis.h>
 #include "TPZSSpStructMatrix.h"
 #include "pzstepsolver.h"
@@ -21,6 +23,7 @@
 #include "pzskylstrmatrix.h"
 #include "TPZVTKGeoMesh.h"
 #include "TPZGmshReader.h"
+#include "TPZExtendGridDimension.h"
 #include "pzintel.h"
 #include "pzcondensedcompel.h"
 #include <json.hpp>
@@ -45,13 +48,21 @@ enum MatID{
     ELayer = 100
 };
 
-TPZGeoMesh* GenerateGeoMesh(std::string filename, json inputFile, std::string meshName = "GeoMesh");
+TPZGeoMesh* GenerateGeoMesh(std::string filename, json inputFile, std::set<int> &matIDvolEls, std::set<int> &matIDBCs, std::string meshName = "GeoMesh");
+
+TPZGeoMesh* ExtrudeMesh(TPZGeoMesh* finegmesh, REAL thickness, int numLayers, std::set<int> &matIdBCs, std::string meshName = "GeoMesh3D");
 
 TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile, int HybridType, std::set<int> &matIDpostProcess);
+
+TPZCompMesh *CreateCompMesh3D(TPZGeoMesh* gmesh, json inputFile, int HybridType, std::set<int> &matIDpostProcess);
+
+void ApplyPreStress(TPZCompMesh* cmesh, json inputFile, int step);
 
 void DuplicateConnectFracture(TPZGeoMesh *gmesh, TPZCompMesh *cmesh);
 
 void SetAnalysis(TPZLinearAnalysis* an, TPZCompMesh* cmesh);
+
+void LinePlot(TPZGeoMesh *gmesh, TPZCompMesh* cmesh, std::set<int> lineMatId, std::set<int> &matIDvolEls, std::map<REAL, TPZVec<REAL>> &results);
 
 void GetCompEls(TPZGeoMesh* gmesh, TPZCompMesh *cmeshH1, TPZCompMesh *cmeshHyb, TPZVec<TPZCompEl*> &celVecH1, TPZVec<TPZCompEl*> &celVecHyb, std::set<int> matId);
 
@@ -68,6 +79,8 @@ void PrintCompMesh(TPZCompMesh *cmesh);
 void gravityLoad(const TPZVec<REAL> &loc, TPZVec<REAL> &result);
 
 void inSituStress(const TPZVec<REAL> &loc, TPZVec<REAL> &result);
+
+std::function<void (const TPZVec<REAL> &loc, TPZVec<REAL> &rhsVal, TPZFMatrix<REAL> &matVal)> inSituStressBC(int bcId);
 
 
 #endif

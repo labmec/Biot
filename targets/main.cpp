@@ -6,7 +6,8 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
 //     TPZLogger::InitializePZLOG();
 // #endif
 
-    std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Ex7.json");
+    std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Ex5.json");
+    //std::ifstream filejson3d("/home/marina/programming/Biot-Research/Biot/Inputs/Ex5-3d.json");
 
     json fInputFile = json::parse(filejson,nullptr,true,true,true); 
 
@@ -15,24 +16,31 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
     std::string fSigTSigN = "LagrangePostProc";
     std::string fMeshDirectory = fInputFile["MeshDirectory"];
     int fHybridType = fInputFile["Simulation"]["ApproximationType"];
+    int fNSteps = fInputFile["Simulation"]["Steps"];
     int refUniform = refLevel;
     int refDir = refLevel;
+    std::set<int> matIDBCs;
+    std::set<int> matIDvolEls;
+    std::set<int> matIDpostProcess;
 
     //---------------------------- Geometric Mesh -------------------------------------------
-    TPZGeoMesh *gmesh = GenerateGeoMesh(fMeshDirectory, fInputFile);
+    TPZGeoMesh *gmesh = GenerateGeoMesh(fMeshDirectory, fInputFile, matIDvolEls, matIDBCs);
     {
         TPZCheckGeom check(gmesh);
         check.UniformRefine(refUniform);
     }
     PrintGeoMesh(gmesh);
 
+    // TPZGeoMesh *gmesh3D = ExtrudeMesh(gmesh, 20.0, 5, matIDBCs);
+
+    // PrintGeoMesh(gmesh3D);
+
     //---------------------------- Computational Mesh ---------------------------------------
-    std::set<int> matIDpostProcess;
     //TPZCompMesh *cmesh = CreateCompMesh(gmesh, fInputFile, 0, matIDpostProcess);
     TPZCompMesh *cmesh_mult = CreateCompMesh(gmesh, fInputFile, 1, matIDpostProcess);
-
-    // PrintCompMesh(cmesh);
-    // PrintCompMesh(cmesh_mult);
+    
+    //fInputFile = json::parse(filejson3d,nullptr,true,true,true); 
+    //TPZCompMesh *cmesh_mult = CreateCompMesh3D(gmesh3D, fInputFile, 1, matIDpostProcess);
     
     //--------------------------------- Analysis  --------------------------------------------
     //TPZLinearAnalysis *AnH1 = new TPZLinearAnalysis(cmesh);
@@ -42,11 +50,12 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
     SetAnalysis(AnHyb, cmesh_mult);
 
     //--------------------------------- Post-Process / Error Estimation  --------------------------------------------
+    std::map<REAL, TPZVec<REAL>> postProcSol;
+
     //PrintCompMesh(cmesh);
     PrintCompMesh(cmesh_mult);
     PrintGeoMesh(gmesh);
-    std::set<int> matIDvolels;
-    matIDvolels.insert(1); //! TEM QUE MUDAR ISSO, VAI DAR ERRO EM OUTRAS MALHAS
+    
 
     // int64_t nels = gmesh->NElements();
     // int64_t nelsH1 = cmesh->NElements();
@@ -68,29 +77,54 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
     //     vtk.Do();
     // }
 
+    std::set<int> line = {203};
+
+    for(int step = 0; step < fNSteps; step++){
+        {
+            const std::string plotfile = fMeshName + "_Hybrid";
+            constexpr int vtkRes{0};
+            TPZManVector<std::string, 10> fields = {"Displacement", "PorePressure", "SigmaX", "SigmaY", "StressEffecY", "StressEffecX"};
+            auto vtk = TPZVTKGenerator(cmesh_mult, fields, plotfile, vtkRes);
+            vtk.SetStep(step);
+            vtk.Do();
+        }
+        {
+            const std::string plotfile = fSigTSigN;
+            constexpr int vtkRes{0};
+            TPZManVector<std::string, 10> fields = {"SigN", "SigT", "SigT_SigN"};
+            auto vtk = TPZVTKGenerator(cmesh_mult, matIDpostProcess, fields, plotfile, vtkRes);
+            vtk.SetStep(step);
+            vtk.Do();
+        }
+        LinePlot(gmesh, cmesh_mult, matIDpostProcess, matIDvolEls, postProcSol);
+        outfile << "{";
+        for(auto& sol : postProcSol){
+            outfile << "{" << sol.first << "," << sol.second << "},\n";
+        }
+        outfile << "}";
+        ApplyPreStress(cmesh_mult, fInputFile, step+1);
+        SetAnalysis(AnHyb, cmesh_mult);
+    }
+
     {
         const std::string plotfile = fMeshName + "_Hybrid";
         constexpr int vtkRes{0};
-        TPZManVector<std::string, 3> fields = {"Displacement", "Pressure", "SigmaX", "SigmaY", "TauXY"};
+        TPZManVector<std::string, 10> fields = {"Displacement", "PorePressure", "SigmaX", "SigmaY", "StressEffecY", "StressEffecX"};
         auto vtk = TPZVTKGenerator(cmesh_mult, fields, plotfile, vtkRes);
+        vtk.SetStep(fNSteps);
+        vtk.Do();
+    }
+    {
+        const std::string plotfile = fSigTSigN;
+        constexpr int vtkRes{0};
+        TPZManVector<std::string, 10> fields = {"SigN", "SigT", "SigT_SigN"};
+        auto vtk = TPZVTKGenerator(cmesh_mult, matIDpostProcess, fields, plotfile, vtkRes);
+        vtk.SetStep(fNSteps);
         vtk.Do();
     }
 
     PrintCompMesh(cmesh_mult);
     PrintGeoMesh(gmesh);
-
-    matIDpostProcess.clear();
-    matIDpostProcess.insert(201);
-
-    {
-        const std::string plotfile = fSigTSigN;
-        constexpr int vtkRes{0};
-        TPZManVector<std::string, 3> fields = {"SigN", "SigT", "SigT_SigN"};
-        auto vtk = TPZVTKGenerator(cmesh_mult, matIDpostProcess, fields, plotfile, vtkRes);
-        vtk.SetNThreads(0);
-        vtk.Do();
-    }
-
 
 }
 
@@ -103,7 +137,8 @@ int main() {
 
     gRefDBase.InitializeRefPatterns(2);
     
-    std::ofstream fileEnergy("energy.txt", std::ios::app);
+    //std::ofstream fileEnergy("energy.txt", std::ios::app);
+    std::ofstream fileEnergy("linePostProc.txt", std::ios::out);
     fileEnergy << "\nnEq " << " Error" << std::endl;
     //fileEnergy << "\nnEq " << " EnergyH1" << " EnergyHyb" << std::endl;
     int refMax = 0;

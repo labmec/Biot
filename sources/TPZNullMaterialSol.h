@@ -34,6 +34,20 @@ public:
 
     void Read(TPZStream &buf, void *context) override;
 
+    void SetPorePressure(STATE porePress, STATE hydroPress);
+
+
+protected:
+
+    /** @brief Problem pore-pressure */
+    STATE fpp = 0.0;
+
+    STATE fPreStressXX = 0.0;
+
+    STATE fPreStressYY = 0.0;
+
+    STATE fPreStressZZ = 0.0;
+
 };
 
 

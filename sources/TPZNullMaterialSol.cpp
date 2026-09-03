@@ -27,6 +27,7 @@ int TPZNullMaterialSol::VariableIndex(const std::string &name) const {
     if (!strcmp("SigT", name.c_str())) return 2;
     if (!strcmp("SigT_SigN", name.c_str())) return 3;
     if (!strcmp("TractionNorm", name.c_str())) return 4;
+    if (!strcmp("PorePressure", name.c_str())) return 5;
 
     return -1;
 }
@@ -39,6 +40,7 @@ int TPZNullMaterialSol::NSolutionVariables(int var) const {
         case 1:
         case 2:
         case 3:
+        case 5:
             return 1;
         case 4:
             return 3;
@@ -47,28 +49,29 @@ int TPZNullMaterialSol::NSolutionVariables(int var) const {
 	}  
 }
 
+void TPZNullMaterialSol::SetPorePressure(STATE porePress, STATE hydroPress) {
+    fpp = porePress;
+	fPreStressXX = hydroPress;
+	fPreStressYY = hydroPress;
+    fPreStressZZ = hydroPress;
+}
+
 void TPZNullMaterialSol::Solution(const TPZVec<TPZMaterialDataT<STATE>> &datavec, int var, TPZVec<STATE> &solOut) {
 
     TPZManVector<STATE, 10> Sol;
     TPZManVector<STATE, 10> Solxy;
     const TPZFMatrix<REAL> &axes = datavec[0].axes;
-    TPZFNMatrix<9,REAL> normal(1, 2, 0.0);
+    TPZFNMatrix<9,REAL> normal(1, fDim+1, 0.0);
 
-    TPZFNMatrix<9,STATE> rot(2, 2, 0.0);
-    rot(0, 1) = 1;
-    rot(1, 0) = -1;
-
-    // for (int i = 0; i < 2; i++){
-    //     for (int j = 0; j < 2; j++){
-    //         normal(0, j) += axes(0, j) * rot(i,j);
-    //     }
-    // }
     normal(0, 0) = axes(0, 1);
     normal(0, 1) = -axes(0, 0);
     REAL n_norm = std::sqrt(normal(0, 0)*normal(0, 0)+normal(0, 1)*normal(0, 1));
     REAL t_norm = std::sqrt(axes(0, 0)*axes(0, 0)+axes(0, 1)*axes(0, 1));
 
-    Sol = datavec[0].sol[0];
+    Sol = datavec[0].sol[0]; // Em termos de XY
+    Sol[0] += fPreStressXX;
+    Sol[1] += fPreStressYY;
+    //Sol[2] += fPreStressZZ;
 
     if (var == 1) {
         STATE trac_normal = Sol[0]*normal(0, 0)+Sol[1]*normal(0, 1);
@@ -94,6 +97,10 @@ void TPZNullMaterialSol::Solution(const TPZVec<TPZMaterialDataT<STATE>> &datavec
     }
     else if (var == 4){
         solOut[2] = std::sqrt(Sol[0]*Sol[0]+Sol[1]*Sol[1]);
+        return;
+    }
+    else if (var == 5){
+        solOut[0] = fPreStressXX;
         return;
     }
     else { //!TO CHANGE
