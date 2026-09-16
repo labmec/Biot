@@ -2,12 +2,13 @@
 
 void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
 
-// #ifdef PZ_LOG
-//     TPZLogger::InitializePZLOG();
-// #endif
+#ifdef PZ_LOG
+    TPZLogger::InitializePZLOG();
+#endif
 
     std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Ex5.json");
-    //std::ifstream filejson3d("/home/marina/programming/Biot-Research/Biot/Inputs/Ex5-3d.json");
+    //std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Test1.json");
+    std::ifstream filejson3d("/home/marina/programming/Biot-Research/Biot/Inputs/Ex5-3d.json");
 
     json fInputFile = json::parse(filejson,nullptr,true,true,true); 
 
@@ -38,13 +39,14 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
     //---------------------------- Computational Mesh ---------------------------------------
     //TPZCompMesh *cmesh = CreateCompMesh(gmesh, fInputFile, 0, matIDpostProcess);
     TPZCompMesh *cmesh_mult = CreateCompMesh(gmesh, fInputFile, 1, matIDpostProcess);
-    
-    //fInputFile = json::parse(filejson3d,nullptr,true,true,true); 
-    //TPZCompMesh *cmesh_mult = CreateCompMesh3D(gmesh3D, fInputFile, 1, matIDpostProcess);
+    // fInputFile = json::parse(filejson3d,nullptr,true,true,true); 
+    // TPZCompMesh *cmesh_mult = CreateCompMesh3D(gmesh3D, fInputFile, 1, matIDpostProcess);
     
     //--------------------------------- Analysis  --------------------------------------------
     //TPZLinearAnalysis *AnH1 = new TPZLinearAnalysis(cmesh);
     TPZLinearAnalysis *AnHyb = new TPZLinearAnalysis(cmesh_mult, RenumType::ENone);
+    PrintGeoMesh(gmesh);
+    PrintCompMesh(cmesh_mult);
 
     //SetAnalysis(AnH1, cmesh);
     SetAnalysis(AnHyb, cmesh_mult);
@@ -77,7 +79,7 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
     //     vtk.Do();
     // }
 
-    std::set<int> line = {203};
+    std::set<int> line = {202};
 
     for(int step = 0; step < fNSteps; step++){
         {
@@ -91,18 +93,20 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
         {
             const std::string plotfile = fSigTSigN;
             constexpr int vtkRes{0};
-            TPZManVector<std::string, 10> fields = {"SigN", "SigT", "SigT_SigN"};
+            TPZManVector<std::string, 10> fields = {"SigN", "SigT", "SigT_SigN", "Failure"};
             auto vtk = TPZVTKGenerator(cmesh_mult, matIDpostProcess, fields, plotfile, vtkRes);
             vtk.SetStep(step);
             vtk.Do();
         }
-        LinePlot(gmesh, cmesh_mult, matIDpostProcess, matIDvolEls, postProcSol);
+        //LinePlot(gmesh, cmesh_mult, matIDpostProcess, matIDvolEls, postProcSol);
+        FailureSearch(gmesh, cmesh_mult, matIDpostProcess, matIDvolEls, postProcSol);
         outfile << "{";
         for(auto& sol : postProcSol){
             outfile << "{" << sol.first << "," << sol.second << "},\n";
         }
         outfile << "}";
         ApplyPreStress(cmesh_mult, fInputFile, step+1);
+        ApplyFaultCohesion(cmesh_mult, fInputFile, step+1);
         SetAnalysis(AnHyb, cmesh_mult);
     }
 
@@ -117,7 +121,7 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
     {
         const std::string plotfile = fSigTSigN;
         constexpr int vtkRes{0};
-        TPZManVector<std::string, 10> fields = {"SigN", "SigT", "SigT_SigN"};
+        TPZManVector<std::string, 10> fields = {"SigN", "SigT", "SigT_SigN", "Failure"};
         auto vtk = TPZVTKGenerator(cmesh_mult, matIDpostProcess, fields, plotfile, vtkRes);
         vtk.SetStep(fNSteps);
         vtk.Do();

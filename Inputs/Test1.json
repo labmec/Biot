@@ -2,8 +2,10 @@
   "MeshName" : "Test1",
   "MeshDirectory" : "/home/marina/programming/Biot-Research/Biot/Meshes/Simple-Domain.msh", 
   "Simulation" : {
-    "ApproximationType" : 1, // Classic H1: 0, Hybrid H1: 1, Both: 2
-    "pOrder" : 2,
+    "ApproximationType" : 1, // Classic H1: 0, Hybrid H1: 1
+    "Steps" : 1,
+    "PostProcFault" : 1, // All Lagrange els: 0, Only Fault els: 1
+    "pOrder" : 1,
     "internalOrder" : 2
   },
   "Dimension": 2,
@@ -16,38 +18,16 @@
       "Young" : 5.0,
       "Poisson" : 0.25,
       "Density" : 2700,
-      "PreStress" : [-10.0, -5.0, 0.0] //stress_xx, stress_yy, stress_xy
-    },
-    {
-      "Name" : "Far-Field",
-      "matId" : 2,
-      "Young" : 5.0,
-      "Poisson" : 0.25,
-      "Density" : 2700,
-      "PreStress" : [-10.0, -5.0, 0.0] //stress_xx, stress_yy, stress_xy
-    },
-    {
-      "Name" : "Reservoir_1",
-      "matId" : 3,
-      "Young" : 5.0,
-      "Poisson" : 0.25,
-      "Density" : 2700,
-      "PreStress" : [-15.0, -10.0, 0.0] //stress_xx, stress_yy, stress_xy
-    },
-    {
-      "Name" : "Reservoir_2",
-      "matId" : 4,
-      "Young" : 5.0,
-      "Poisson" : 0.25,
-      "Density" : 2700,
-      "PreStress" : [-10.0, -5.0, 0.0] //stress_xx, stress_yy, stress_xy
+      "PreStress" : [-10.0, -5.0, 0.0], //stress_xx, stress_yy, stress_xy
+      "StepStress" : [0.0, 0.0, 0.0]
     }
   ],
   "FaultData" : [
     {
       "Name" : "Fault",
-      "matId" : 201
-      //"PreStress" : [15.82e6, -22.6e6, 0.0] //stress_xx, stress_yy, stress_xy
+      "matId" : 201,
+      "PreStress" : [0.0, 0.0, 0.0], //stress_xx, stress_yy, stress_xy
+      "StepStress" : [0.0, 0.0, 0.0]
     }
   ],
   "InSitu_Stress" : {
@@ -63,24 +43,19 @@
       "matId" : 10,
       "Type" : 1, //Dirichlet: 0, Neumann: 1, Mixed: 2
       "normal" : [-1.0, 0.0],
-      "Value2" : [10.0, 0.0]
+      "Value2" : [10.0, 0.0], 
+      "ForcingFunction" : 0,
+      "HybridizeBC" : 0
     },
-    // {
-    //   "Name" : "bottom",
-    //   "Dim" : 1,
-    //   "matId" : 7,
-    //   "Type" : 2, 
-    //   "normal" : [0.0, -1.0],
-    //   "Value1" : [[0.0, 0.0],[0.0, 1.0e9]], // constrained in y
-    //   "Value2" : [0.0, -15.82e6]
-    // },
     {
       "Name" : "bottom",
       "Dim" : 1,
       "matId" : 11,
       "Type" : 0, 
       "normal" : [0.0, -1.0],
-      "Value2" : [0.0, 0.0]
+      "Value2" : [0.0, 0.0],
+      "ForcingFunction" : 0,
+      "HybridizeBC" : 0
     },
     {
       "Name" : "right",
@@ -88,7 +63,9 @@
       "matId" : 12,
       "Type" : 1, 
       "normal" : [1.0, 0.0],
-      "Value2" : [-10.0, 0.0]
+      "Value2" : [-10.0, 0.0],
+      "ForcingFunction" : 0,
+      "HybridizeBC" : 0
     },
     {
       "Name" : "top",
@@ -96,39 +73,9 @@
       "matId" : 13,
       "Type" : 1, 
       "normal" : [0.0, 1.0],
-      "Value2" : [0.0, -5.0]
+      "Value2" : [0.0, -5.0],
+      "ForcingFunction" : 0,
+      "HybridizeBC" : 0
     }
-    // {
-    //   "Name" : "left_res",
-    //   "Dim" : 1,
-    //   "matId" : 14,
-    //   "Type" : 1, //Dirichlet: 0, Neumann: 1, Mixed: 2
-    //   "normal" : [-1.0, 0.0],
-    //   "Value2" : [-2.0, 0.0]
-    // },
-    // {
-    //   "Name" : "bottom_res",
-    //   "Dim" : 1,
-    //   "matId" : 15,
-    //   "Type" : 1, 
-    //   "normal" : [0.0, -1.0],
-    //   "Value2" : [0.0, -2.0]
-    // },
-    // {
-    //   "Name" : "right_res",
-    //   "Dim" : 1,
-    //   "matId" : 16,
-    //   "Type" : 1, 
-    //   "normal" : [1.0, 0.0],
-    //   "Value2" : [2.0, 0.0]
-    // },
-    // {
-    //   "Name" : "top_res",
-    //   "Dim" : 1,
-    //   "matId" : 17,
-    //   "Type" : 1, 
-    //   "normal" : [0.0, 1.0],
-    //   "Value2" : [0.0, -2.0]
-    // }
   ]
 }

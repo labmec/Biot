@@ -2,6 +2,8 @@
 #define TPZNULLMATERIALSOL_H
 
 #include "TPZNullMaterialCS.h"
+#include "pzaxestools.h"
+#include "TPZMaterialDataT.h"
 
 class TPZNullMaterialSol : public TPZNullMaterialCS<STATE> {
 
@@ -23,7 +25,7 @@ public:
     void Solution(const TPZVec<TPZMaterialDataT<STATE>> &datavec, int var, TPZVec<STATE> &solOut) override;
 
     void Contribute(const TPZVec<TPZMaterialDataT<STATE>> &datavec, REAL weight,
-                    TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef) override {}
+                    TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef) override;
 
     void ContributeBC(const TPZVec<TPZMaterialDataT<STATE>> &datavec, REAL weight,
                       TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef, TPZBndCondT<STATE> &bc) override {}
@@ -36,6 +38,12 @@ public:
 
     void SetPorePressure(STATE porePress, STATE hydroPress);
 
+    void SetFaultStiff(TPZFMatrix<STATE> &Kfault);
+
+    void SetCriterionParameters(REAL cohesion, REAL friction);
+
+    REAL failureCriteria(TPZVec<STATE> &tension);
+
 
 protected:
 
@@ -47,6 +55,14 @@ protected:
     STATE fPreStressYY = 0.0;
 
     STATE fPreStressZZ = 0.0;
+
+    REAL fCohesion = 0.0;
+
+    REAL fAngle = 0.0;
+
+    /** @brief Cohesive coeffs applied to constitutive/conatct law on the fault 
+     * for normal and tangential traction */
+    TPZFMatrix<STATE> fStiffFault;
 
 };
 

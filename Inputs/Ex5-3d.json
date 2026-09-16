@@ -5,7 +5,7 @@
     "ApproximationType" : 1, // Classic H1: 0, Hybrid H1: 1
     "Steps" : 1,
     "PostProcFault" : 1, // All Lagrange els: 0, Only Fault els: 1
-    "pOrder" : 2,
+    "pOrder" : 1,
     "internalOrder" : 3
   },
   "Dimension": 3,
