@@ -1,5 +1,6 @@
 #include "sources.h"
 #include "TPZNullMaterial.h"
+#include "TPZLagrangeMultiplierCS.h"
 
 TPZGeoMesh* GenerateGeoMesh(std::string filename, json inputFile, std::set<int> &matIDvolEls, std::set<int> &matIDBCs, std::string meshName) {
     
@@ -234,11 +235,17 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile, int HybridType, s
         TPZCompMesh* flux_mesh = meshvec[0];
         for(int faultId : faultIds){
             TPZNullMaterial<STATE> *matFrac0 = new TPZNullMaterial<STATE>(faultId, 1, 2);
+            TPZNullMaterial<STATE> *matSlip0 = new TPZNullMaterial<STATE>(faultId+10, 1, 2);
             TPZNullMaterialSol *matFrac = new TPZNullMaterialSol(faultId, 1, 2);
+            TPZSlipMaterial *matSlip = new TPZSlipMaterial(faultId+10, 1, 2); //! Change this method
             matFrac->SetPorePressure(pp, preStress[faultId][0]);
-            matFrac->SetCriterionParameters(0.0, 25.0);
+            matFrac->SetCriterionParameters(0.0, 25.0); //! CParameters HardCoded
+            matSlip->SetPorePressure(pp, preStress[faultId][0]);
+            matSlip->SetCriterionParameters(0.0, 25.0);
             flux_mesh->InsertMaterialObject(matFrac0);
+            flux_mesh->InsertMaterialObject(matSlip0);
             cmesh->InsertMaterialObject(matFrac);
+            cmesh->InsertMaterialObject(matSlip);  
         }
 
         for (int el = 0; el < gmesh->NElements(); el++){
@@ -258,7 +265,7 @@ TPZCompMesh *CreateCompMesh(TPZGeoMesh* gmesh, json inputFile, int HybridType, s
                     bool hasFaultNeigh = gelside.HasNeighbour(faultId); 
                     if (hasFaultNeigh) {
                         gel->SetMaterialId(faultId);
-                        if(onlyPostProcFault) matIDpostProcess.insert(faultId);
+                        if(onlyPostProcFault) matIDpostProcess.insert(faultId); 
                         break;
                     }
                 }
@@ -540,31 +547,44 @@ void ApplyPreStress(TPZCompMesh* cmesh, json inputFile, int step){
     }
 }
 
-void ApplyFaultCohesion(TPZCompMesh* cmesh, json inputFile, int step){
-    //! Mas ainda tem que fazer só para elementos slip
-    //! Tem que verificar quais elementos passaram do slip
-    //! Criar um novo material pra cada elemento?
-    //! Checar dentro do contibuite?
-    
+void ApplyFaultCohesion(TPZCompMesh* cmesh, json inputFile, std::set<int> &matIDpostProcess, int step){
+
     int fNSteps = inputFile["Simulation"]["Steps"];
     int Dim = inputFile["Dimension"];
     std::set<int> faultIds;
-    TPZFNMatrix<10,STATE> cohesionFault(2, 2, 0.0);
+    TPZManVector<STATE, 3> cohesionFault(2, 0.0);
 
     for(auto& fault : inputFile["FaultData"]){
         if(fault.find("Stiff") == fault.end()) DebugStop(); 
         int faultId = fault["matId"];
         faultIds.insert(faultId);
-        cohesionFault(0,0) = fault["Stiff"][0];
-        cohesionFault(1,1) = fault["Stiff"][1];
+        cohesionFault[0] = fault["Stiff"][0];
+        cohesionFault[1] = fault["Stiff"][1];
     }
 
     for(int faultId : faultIds){
-        TPZMaterial* faultMat = cmesh->FindMaterial(faultId);
+        TPZMaterial* faultMat = cmesh->FindMaterial(faultId+10);
         if(!faultMat) DebugStop();
 
-        TPZNullMaterialSol *matFrac = dynamic_cast<TPZNullMaterialSol*>(faultMat);
+        TPZSlipMaterial *matFrac = dynamic_cast<TPZSlipMaterial*>(faultMat);
         matFrac->SetFaultStiff(cohesionFault);
+    }
+
+    TPZGeoMesh* gmesh = cmesh->Reference();
+
+    for (int el = 0; el < gmesh->NElements(); el++){
+        
+        TPZGeoEl* gel = gmesh->Element(el);
+        
+        int elId = gel->MaterialId();
+        
+        if (faultIds.find(elId) == faultIds.end()) continue;
+
+        int slipTendency = FailureCheck(gel);
+        if (slipTendency) {
+            gel->SetMaterialId(elId+10); //! Change this method
+        }
+        matIDpostProcess.insert(elId+10); //! Post proc faltId+10 
     }
 }
 
@@ -746,66 +766,53 @@ void FailureSearch(TPZGeoMesh *gmesh, TPZCompMesh* cmesh, std::set<int> lineMatI
     }
 }
 
+int FailureCheck(TPZGeoEl* gel) {
 
-void DuplicateConnectFracture(TPZGeoMesh *gmesh, TPZCompMesh *cmesh, std::set<int> fracBcIds){
-    int nels = gmesh->NElements();
-    std::set<int> neighIndices; // set to store el indeces that has already been analyzed
-    for (int64_t el = 0; el < cmesh->NElements(); el++){
-        TPZCompEl *cel = cmesh->Element(el);
-        TPZGeoEl *gel = cel->Reference();
-        int meshDim = gmesh->Dimension();
-        int elDim = gel->Dimension(); 
-        int matId = gel->MaterialId();
+    int result = 0;
+    double aux = 0.0;
+    int matId = gel->MaterialId(); //! Assuming it is already a fault element
+    int iside = gel->NSides() - 1;
+    TPZGeoElSide gelside(gel, iside);
+    TPZGeoElSide neighSide = gelside.Neighbour();
+    TPZGeoEl* neighEl = neighSide.Element();
+    TPZCompEl* cel = gel->Reference();
 
+    TPZManVector<REAL, 3> xCenter(3), xiCenter(2), xCenter2(3);
+    TPZManVector<REAL, 3> pt(1), xi(2), xreal(3, 0.0);
 
-        if(elDim != meshDim - 1 || matId < 200) continue; 
-        if(neighIndices.find(gel->Index()) != neighIndices.end()) continue;
-
-        int iside = gel->NSides() - 1;
-
-        TPZGeoElSide gelside(gel, iside);
-        TPZCompElSide celside = gelside.Reference();
-
-        TPZGeoElSide neighBCside = gelside.HasNeighbour(200); 
-        TPZGeoElSide neighDarcyside = gelside.HasNeighbour(EMatId); 
-        TPZGeoElSide neighDarcy2side = neighDarcyside.HasNeighbour(EMatId);
-
-        TPZGeoElSide neighbour = gelside.Neighbour();
-        int neighIndex = 0;
-        while(neighbour != gelside){
-            if(fracBcIds.find(neighbour.Element()->MaterialId()) != fracBcIds.end()){
-                neighIndex = neighbour.Element()->Index();
-                auto it = neighIndices.find(neighIndex);
-                if (it == neighIndices.end()){
-                    neighBCside = neighbour;
-                    neighIndices.insert(neighIndex);
-                }
-            }
-            neighbour = neighbour.Neighbour();
-        }
-
-
-        if (!neighBCside || !neighDarcyside || !neighDarcy2side) DebugStop();
-
-
-        TPZCompElSide celBCneigh = neighBCside.Reference(); 
-        TPZCompElSide celDarcyneigh = neighDarcyside.Reference();
-        TPZCompElSide celDarcy2neigh = neighDarcy2side.Reference();
-
-        int connRight = celDarcyneigh.ConnectIndex();
-        int connLeft = celDarcy2neigh.ConnectIndex();
-
-        celDarcyneigh.SplitConnect(celDarcy2neigh);
-
-        connRight = celDarcyneigh.ConnectIndex();
-        connLeft = celDarcy2neigh.ConnectIndex();
-
-        celside.Element()->SetConnectIndex(0, connRight);
-        celBCneigh.Element()->SetConnectIndex(0, connLeft);
-
-        cmesh->ExpandSolution();
-        cmesh->ComputeNodElCon();
+    //searching for fault elements 
+    // while(neighSide != gelside)
+    // {
+    //     neighEl = neighSide.Element();
+    //     if (neighEl->MaterialId() == matId) {
+    //         cel = neighEl->Reference();
+    //         break;
+    //     }
+    //     neighSide = neighSide.Neighbour();
+    // }
+	TPZIntPoints *integ = gel->CreateSideIntegrationRule(gel->NSides()-1,4); // Make loop over integration points
+    int npoints = integ->NPoints();
+    TPZVec<STATE> postProc(2, 0.0);
+    TPZVec<STATE> slipTendency(1, 0.0);
+    TPZVec<STATE> pp(1, 0.0);
+    for (int point = 0; point < npoints; point++) {
+        REAL weight;
+        integ->Point(point, pt, weight);
+        if (!cel)
+            continue;
+        cel->Solution(pt, 5, pp);
+        cel->Solution(pt, 6, slipTendency);
+        postProc[0] = pp[0];
+        postProc[1] = slipTendency[0];
+        gel->X(pt, xreal);
+        
+        aux = slipTendency[0];
+        if(slipTendency[0] > 1.0)
+            result = 1;
+        
     }
+
+    return result;
 }
 
 

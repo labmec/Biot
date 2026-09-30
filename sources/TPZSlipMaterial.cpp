@@ -1,9 +1,8 @@
-#include "TPZNullMaterialSol.h"
+#include "TPZSlipMaterial.h"
 #include <cstring>
 
-void TPZNullMaterialSol::Contribute(const TPZVec<TPZMaterialDataT<STATE>> &datavec, REAL weight, 
+void TPZSlipMaterial::Contribute(const TPZVec<TPZMaterialDataT<STATE>> &datavec, REAL weight, 
                                     TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef) {
-    return;
 
     TPZFMatrix<REAL> &dphi = datavec[0].dphix;
     TPZFMatrix<REAL> &phiT = datavec[0].phi;
@@ -63,11 +62,11 @@ void TPZNullMaterialSol::Contribute(const TPZVec<TPZMaterialDataT<STATE>> &datav
     ek.AddContribution(0, 0, phivecT, 0, phivecT, 1, factor); 
 }
 
-int TPZNullMaterialSol::ClassId() const {
-    return Hash("TPZNullMaterialSol") ^ TBase::ClassId() << 1;
+int TPZSlipMaterial::ClassId() const {
+    return Hash("TPZSlipMaterial") ^ TBase::ClassId() << 1;
 }
 
-void TPZNullMaterialSol::Write(TPZStream &buf, int withclassid) const {
+void TPZSlipMaterial::Write(TPZStream &buf, int withclassid) const {
     TPZMaterial::Write(buf, withclassid);
     if (fDim < 1 || fDim > 3) {
         DebugStop();
@@ -76,13 +75,13 @@ void TPZNullMaterialSol::Write(TPZStream &buf, int withclassid) const {
     buf.Write(&fNState);
 }
 
-void TPZNullMaterialSol::Read(TPZStream &buf, void *context) {
+void TPZSlipMaterial::Read(TPZStream &buf, void *context) {
     TPZMaterial::Read(buf, context);
     buf.Read(&fDim);
     buf.Read(&fNState);
 }
 
-void TPZNullMaterialSol::FillDataRequirements(TPZVec<TPZMaterialDataT<STATE>> &datavec) const {
+void TPZSlipMaterial::FillDataRequirements(TPZVec<TPZMaterialDataT<STATE>> &datavec) const {
     for (auto i = 0; i < datavec.size(); i++) {
         datavec[i].SetAllRequirements(false);
         datavec[i].fActiveApproxSpace = false;
@@ -90,7 +89,7 @@ void TPZNullMaterialSol::FillDataRequirements(TPZVec<TPZMaterialDataT<STATE>> &d
     }
 }
 
-int TPZNullMaterialSol::VariableIndex(const std::string &name) const {
+int TPZSlipMaterial::VariableIndex(const std::string &name) const {
     if (!strcmp("SigN", name.c_str())) return 1;
     if (!strcmp("SigT", name.c_str())) return 2;
     if (!strcmp("SigT_SigN", name.c_str())) return 3;
@@ -102,7 +101,7 @@ int TPZNullMaterialSol::VariableIndex(const std::string &name) const {
     return -1;
 }
 
-int TPZNullMaterialSol::NSolutionVariables(int var) const {
+int TPZSlipMaterial::NSolutionVariables(int var) const {
 
     switch(var) {
 		case 0:
@@ -121,31 +120,31 @@ int TPZNullMaterialSol::NSolutionVariables(int var) const {
 	}  
 }
 
-void TPZNullMaterialSol::SetPorePressure(STATE porePress, STATE hydroPress) {
+void TPZSlipMaterial::SetPorePressure(STATE porePress, STATE hydroPress) {
     fpp = porePress;
 	fPreStressXX = hydroPress;
 	fPreStressYY = hydroPress;
     fPreStressZZ = hydroPress;
 }
 
-void TPZNullMaterialSol::SetFaultStiff(TPZVec<STATE> &Kfault){
+void TPZSlipMaterial::SetFaultStiff(TPZVec<STATE> &Kfault){
     fStiffFault = Kfault;
 }
 
-void TPZNullMaterialSol::SetCriterionParameters(REAL cohesion, REAL friction) {
+void TPZSlipMaterial::SetCriterionParameters(REAL cohesion, REAL friction) {
     fCohesion = cohesion;
     double my_pi = 3.14159265359;
     fAngle = friction * my_pi / 180.0;
 }
 
-REAL TPZNullMaterialSol::failureCriteria(TPZVec<STATE> &tension) {
+REAL TPZSlipMaterial::failureCriteria(TPZVec<STATE> &tension) {
 
     REAL result = std::abs(tension[1] / (fCohesion - tension[0] * std::tan(fAngle)));
 
     return result;
 }
 
-REAL TPZNullMaterialSol::slipTendency(const TPZVec<TPZMaterialDataT<STATE>> &datavec) {
+REAL TPZSlipMaterial::slipTendency(const TPZVec<TPZMaterialDataT<STATE>> &datavec) {
 
     TPZManVector<STATE, 10> Sol;
     TPZManVector<STATE, 10> Solxy;
@@ -187,7 +186,7 @@ REAL TPZNullMaterialSol::slipTendency(const TPZVec<TPZMaterialDataT<STATE>> &dat
     return failureCriteria(tension);
 }
 
-void TPZNullMaterialSol::Solution(const TPZVec<TPZMaterialDataT<STATE>> &datavec, int var, TPZVec<STATE> &solOut) {
+void TPZSlipMaterial::Solution(const TPZVec<TPZMaterialDataT<STATE>> &datavec, int var, TPZVec<STATE> &solOut) {
 
     TPZManVector<STATE, 10> Sol;
     TPZManVector<STATE, 10> Solxy;
@@ -224,12 +223,12 @@ void TPZNullMaterialSol::Solution(const TPZVec<TPZMaterialDataT<STATE>> &datavec
     TPZManVector<STATE, 3> t_t({0.0, 0.0, 0.0});
     TPZManVector<STATE, 3> t_t2({0.0, 0.0, 0.0});
     for (int i = 0; i < fDim+1; i++) {
-        trac_normal += Sol[i]*normal(0, i); // traction magnitude in normal direction
-        trac_tan2 += Sol[i]*axes(0, i); // traction magnitude in tangential direction
+        trac_normal += Sol[i]*normal(0, i);
+        trac_tan2 += Sol[i]*axes(0, i);
     }
     for (int i = 0; i < fDim+1; i++) {
-        t_n[i] = trac_normal*normal(0, i); // Normal traction 
-        t_t2[i] = trac_tan2*axes(0, i); // Tangential traction
+        t_n[i] = trac_normal*normal(0, i);
+        t_t2[i] = trac_tan2*axes(0, i); 
     }
     for (int i = 0; i < fDim+1; i++) {
         t_t[i] = Sol[i]-t_n[i]; 
@@ -247,12 +246,12 @@ void TPZNullMaterialSol::Solution(const TPZVec<TPZMaterialDataT<STATE>> &datavec
     }
     else if (var == 3) {
         if (std::abs(trac_normal) < 1.0e-12) DebugStop();
-        solOut[0] = std::abs(trac_tan2/trac_normal);
+        solOut[0] = std::abs(trac_tan/trac_normal);
         return;
     }
     else if (var == 4){
         for (int i = 0; i < fDim+1; i++)
-            solOut[2] += std::sqrt(Sol[i]*Sol[i]);
+            solOut[2] += Sol[i]*Sol[i];
         return;
     }
     else if (var == 5){
@@ -260,12 +259,12 @@ void TPZNullMaterialSol::Solution(const TPZVec<TPZMaterialDataT<STATE>> &datavec
         return;
     }
     else if (var == 6){
-        TPZVec<STATE> tension({trac_normal, trac_tan2});
+        TPZVec<STATE> tension({trac_normal, trac_tan});
         solOut[0] = failureCriteria(tension);
         return;
     }
     else if (var == 7){
-        TPZVec<STATE> tension({trac_normal, trac_tan2});
+        TPZVec<STATE> tension({trac_normal, trac_tan});
 
         if(failureCriteria(tension) > 1)
             solOut[0] = 1.0;

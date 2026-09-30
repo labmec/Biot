@@ -1,17 +1,17 @@
-#ifndef TPZNULLMATERIALSOL_H
-#define TPZNULLMATERIALSOL_H
+#ifndef TPZSLIPMATERIAL_H
+#define TPZSLIPMATERIAL_H
 
 #include "TPZMatBase.h"
 #include "TPZMatCombinedSpaces.h"
 #include "pzaxestools.h"
 #include "TPZMaterialDataT.h"
 
-class TPZNullMaterialSol : public TPZMatBase<STATE, TPZMatCombinedSpacesT<STATE>> {
+class TPZSlipMaterial : public TPZMatBase<STATE, TPZMatCombinedSpacesT<STATE>> {
     using TBase = TPZMatBase<STATE, TPZMatCombinedSpacesT<STATE>>;
 
 public:
 
-    TPZNullMaterialSol(int matid, int dimension, int nstate) : TPZRegisterClassId(&TPZNullMaterialSol::ClassId), TBase(matid) {
+    TPZSlipMaterial(int matid, int dimension, int nstate) : TPZRegisterClassId(&TPZSlipMaterial::ClassId), TBase(matid) {
         if (dimension < 1 || dimension >3) {
             DebugStop();
         }
@@ -20,7 +20,7 @@ public:
     }
 
     /** @brief Default constructor */
-    TPZNullMaterialSol() : TPZRegisterClassId(&TPZNullMaterialSol::ClassId), TBase() {
+    TPZSlipMaterial() : TPZRegisterClassId(&TPZSlipMaterial::ClassId), TBase() {
         fDim = 1;
         fNState = 1;
     }
@@ -29,7 +29,7 @@ public:
 
     [[nodiscard]] int NStateVariables() const override { return fNState; }
 
-    std::string Name() const override { return "TPZNullMaterialSol"; }
+    std::string Name() const override { return "TPZSlipMaterial"; }
 
     int VariableIndex(const std::string &name) const override;
 
@@ -52,7 +52,7 @@ public:
     void FillDataRequirements(TPZVec<TPZMaterialDataT<STATE>> &datavec) const override;
 
     [[nodiscard]] TPZMaterial *NewMaterial() const override {
-        return new TPZNullMaterialSol(*this);
+        return new TPZSlipMaterial(*this);
     }
 
     void SetPorePressure(STATE porePress, STATE hydroPress);

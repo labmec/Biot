@@ -7,6 +7,7 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
 #endif
 
     std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Ex5.json");
+    //std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Ex3.json");
     //std::ifstream filejson("/home/marina/programming/Biot-Research/Biot/Inputs/Test1.json");
     std::ifstream filejson3d("/home/marina/programming/Biot-Research/Biot/Inputs/Ex5-3d.json");
 
@@ -93,20 +94,20 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
         {
             const std::string plotfile = fSigTSigN;
             constexpr int vtkRes{0};
-            TPZManVector<std::string, 10> fields = {"SigN", "SigT", "SigT_SigN", "Failure"};
+            TPZManVector<std::string, 10> fields = {"SigN", "SigT", "SigT_SigN", "SlipTendency"};
             auto vtk = TPZVTKGenerator(cmesh_mult, matIDpostProcess, fields, plotfile, vtkRes);
             vtk.SetStep(step);
             vtk.Do();
         }
-        //LinePlot(gmesh, cmesh_mult, matIDpostProcess, matIDvolEls, postProcSol);
-        FailureSearch(gmesh, cmesh_mult, matIDpostProcess, matIDvolEls, postProcSol);
+        LinePlot(gmesh, cmesh_mult, matIDpostProcess, matIDvolEls, postProcSol);
+        //FailureSearch(gmesh, cmesh_mult, matIDpostProcess, matIDvolEls, postProcSol);
         outfile << "{";
         for(auto& sol : postProcSol){
             outfile << "{" << sol.first << "," << sol.second << "},\n";
         }
         outfile << "}";
         ApplyPreStress(cmesh_mult, fInputFile, step+1);
-        ApplyFaultCohesion(cmesh_mult, fInputFile, step+1);
+        ApplyFaultCohesion(cmesh_mult, fInputFile, matIDpostProcess, step+1);
         SetAnalysis(AnHyb, cmesh_mult);
     }
 
@@ -121,7 +122,7 @@ void PrimalElasticity2D(int refLevel, std::ofstream &outfile) {
     {
         const std::string plotfile = fSigTSigN;
         constexpr int vtkRes{0};
-        TPZManVector<std::string, 10> fields = {"SigN", "SigT", "SigT_SigN", "Failure"};
+        TPZManVector<std::string, 10> fields = {"SigN", "SigT", "SigT_SigN", "SlipTendency"};
         auto vtk = TPZVTKGenerator(cmesh_mult, matIDpostProcess, fields, plotfile, vtkRes);
         vtk.SetStep(fNSteps);
         vtk.Do();

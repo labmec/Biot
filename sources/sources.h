@@ -16,6 +16,7 @@
 #include "TPZH1ApproxCreator.h"
 #include "TPZNullMaterialCS.h"
 #include "TPZNullMaterialSol.h"
+#include "TPZSlipMaterial.h"
 #include "TPZSimpleTimer.h"
 #include "pzbuildmultiphysicsmesh.h"
 #include "TPZVTKGenerator.h"
@@ -58,15 +59,15 @@ TPZCompMesh *CreateCompMesh3D(TPZGeoMesh* gmesh, json inputFile, int HybridType,
 
 void ApplyPreStress(TPZCompMesh* cmesh, json inputFile, int step);
 
-void ApplyFaultCohesion(TPZCompMesh* cmesh, json inputFile, int step);
-
-void DuplicateConnectFracture(TPZGeoMesh *gmesh, TPZCompMesh *cmesh);
+void ApplyFaultCohesion(TPZCompMesh* cmesh, json inputFile, std::set<int> &matIDpostProcess, int step=0);
 
 void SetAnalysis(TPZLinearAnalysis* an, TPZCompMesh* cmesh);
 
 void LinePlot(TPZGeoMesh *gmesh, TPZCompMesh* cmesh, std::set<int> lineMatId, std::set<int> &matIDvolEls, std::map<REAL, TPZVec<REAL>> &results);
 
 void FailureSearch(TPZGeoMesh *gmesh, TPZCompMesh* cmesh, std::set<int> lineMatId, std::set<int> &matIDvolEls, std::map<REAL, TPZVec<REAL>> &results);
+
+int FailureCheck(TPZGeoEl* gel);
 
 void GetCompEls(TPZGeoMesh* gmesh, TPZCompMesh *cmeshH1, TPZCompMesh *cmeshHyb, TPZVec<TPZCompEl*> &celVecH1, TPZVec<TPZCompEl*> &celVecHyb, std::set<int> matId);
 
